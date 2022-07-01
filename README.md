@@ -2,13 +2,14 @@
 
 ## **Description**
 
-MomentumScroller is a JavaScript module that provides advanced, easy-to-use momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. You can easily customize the grab and grabbing cursors, the scroll deceleration rate, and more. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
+MomentumScroller is a JavaScript module that provides advanced, easy-to-use momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. You can easily customize the grab and grabbing cursors, the scroll deceleration rate, border bounciness, and more. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
 Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is JavaScript module that provides advanced, easy-to-use smooth scrolling functionality for your website and is designed to work well with MomentumScroller.
 
 ## **Features**
 
 - Touch-Screen-Style Momentum Scrolling on Non-Touch-Screen Devices
+- Customizable Bouncy Borders
 - Customizable Scroll Deceleration Rates
 - Customizable Grab and Grabbing Cursors
 - Toggle On and Off
@@ -61,18 +62,12 @@ There are a number of setters available to customize MomentumScroller instances.
 
 ### Setters:
 
-- **setGrabCursor()** — _string_ — The desired [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grab _(default: "grab")_
-- **setGrabbingCursor()** — _string_ — The desired [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grabbing _(default: "grabbing")_
-- **setDeceleration()** — _string_ — The desired deceleration rate _(default: "medium")_
-- **setStopScrollOnPointerDown()** — _boolean_ — The desired behavior on scroll container pointerdown events _(default: true)_
-- **setPreventDefaultSelectors()** — _array_ — The list of [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that the scroller should prevent default behavior on, i.e. not handle input on _(default: [])_
-- **setDecelerationMap()** — _map_ — The deceleration [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) that maps string keys to number values _(default: new Map([
-  ["zero", 0],
-  ["low", 0.0001875],
-  ["medium", 0.00075],
-  ["high", 0.006],
-  ["infinite", Infinity],
-  ]))_
+- **setGrabCursor** — _String_ — Set the [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grab _(default: "grab")_
+- **setGrabbingCursor** — _String_ — Set the [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grabbing _(default: "grabbing")_
+- **setDecelerationLevel** — _String_ — Set the momentum scroll deceleration level: "none", "minimum", "low", "medium", "high", or "maximum" _(default: "medium")_
+- **setBorderBouncinessLevel** — _String_ — Set how bouncy the borders are when they are hit by momentum scrolls: "none", "minimum", "low", "medium", "high", or "maximum" _(default: "medium")_
+- **setEnableScrollStopOnPointerDown** — _Boolean_ — Enable scroll-stopping on pointerdown events _(default: true)_
+- **setPreventDefaultSelectors** — _Array_ — The list of [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that the scroller should prevent default behavior on, i.e. not handle input on _(default: [])_
 
 ### Example of Using Setters to Customize a MomentumScroller:
 
@@ -82,6 +77,7 @@ const momentumScrollerInstance = new MomentumScroller(
 )
   .setGrabCursor("var(--custom-grab-cursor)")
   .setGrabbingCursor("var(--custom-grabbing-cursor)")
+  .setDecelerationLevel("low")
   .setPreventDefaultSelectors(["header", "textarea"])
   .activate();
 ```
@@ -97,6 +93,8 @@ const momentumScrollerInstance = new MomentumScroller(
 - **momentumScrollStart** — Dispatches when a momentum scroll starts
 - **momentumScroll** — Dispatches continuously while momentum scrolling
 - **momentumScrollStop** — Dispatches when a momentum scroll stops
+- **bounceStart** — Dispatches when a bounce starts
+- **bounceStop** — Dispatches when a bounce stops
 
 ### Event Data:
 
