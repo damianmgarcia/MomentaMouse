@@ -4,7 +4,7 @@ import {
   isPrimaryInput,
   ScrollContainerTools,
   validateArgument,
-} from "./utilities.js";
+} from "https://damianmgarcia.com/scripts/modules/utilities.js";
 
 const deviceHeuristics = getDeviceHeuristics();
 const momentumScrollerKey = Symbol("momentumScrollerKey");
