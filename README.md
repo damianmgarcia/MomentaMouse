@@ -2,19 +2,16 @@
 
 ## **Description**
 
-MomentumScroller is a JavaScript module that provides advanced, easy-to-use momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. You can easily customize the grab and grabbing cursors, the scroll deceleration rate, border bounciness, and more. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
+MomentumScroller is a JavaScript module that provides easy-to-use and highly-customizable momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
-Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is JavaScript module that provides advanced, easy-to-use smooth scrolling functionality for your website and is designed to work well with MomentumScroller.
+Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is a JavaScript module that provides easy-to-use and highly-customizable smooth scrolling functionality for your website and is designed to work well with MomentumScroller.
 
 ## **Features**
 
-- Touch-Screen-Style Momentum Scrolling on Non-Touch-Screen Devices
-- Customizable Bouncy Borders
-- Customizable Scroll Deceleration Rates
-- Customizable Grab and Grabbing Cursors
-- Toggle On and Off
-- Events
-- Promise-Based
+- Touch-screen-style scrolling for mouse-users
+- Automatic scroller creation
+- Easily customize scroll deceleration, border bounciness, cursors, and more.
+- Dispatches custom events so your code can easily react
 
 ## **Installation**
 
@@ -24,130 +21,146 @@ Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller
 import { MomentumScroller } from "https://damianmgarcia.com/scripts/modules/momentum-scroller.js";
 ```
 
-## **Usage**
+## **Usage (Basic)**
 
-### Instantiate a MomentumScroller:
-
-```javascript
-const momentumScrollerInstance = new MomentumScroller(
-  document.querySelector("body")
-);
-```
-
-### Activate it:
+### Automatically Create MomentumScrollers:
 
 ```javascript
-momentumScrollerInstance.activate();
+MomentumScroller.autoCreateScrollers();
 ```
 
-That's it! After activation, mouse-users will be able to flick through the scroll container as if they were using a touch-screen device.
-
-If necessary, you may also deactivate or toggle the activation state of a MomentumScroller.
-
-### Deactivate a MomentumScroller:
+### Manually Create a MomentumScroller:
 
 ```javascript
-momentumScrollerInstance.deactivate();
+MomentumScroller.createScroller(document.querySelector("body"));
 ```
 
-### Toggle Activation State of a MomentumScroller:
+Done! Mouse-users will be able to flick through the scroll container as if they were using a touch-screen device.
 
-```javascript
-momentumScrollerInstance.toggleOnOff();
-```
+## **Usage (Advanced)**
 
-## **Customization**
+Below is a list of all static and instance methods. Most methods allow for [method chaining](https://en.wikipedia.org/wiki/Method_chaining).
 
-There are a number of setters available to customize MomentumScroller instances. The setters are chainable and may be used during or after instantiation.
+Method names are bolded and are followed by a description of the method's function.
 
-### Setters:
+If a method has parameters, they are listed in order below the method description. Parameter names are italicized, and if they have a default value, they are also italicized, followed by a description of the parameter's function. Some parameters are options objects.
 
-- **setGrabCursor** — _String_ — Set the [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grab _(default: "grab")_
-- **setGrabbingCursor** — _String_ — Set the [CSS cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor) for grabbing _(default: "grabbing")_
-- **setDecelerationLevel** — _String_ — Set the momentum scroll deceleration level: "none", "minimum", "low", "medium", "high", or "maximum" _(default: "medium")_
-- **setBorderBouncinessLevel** — _String_ — Set how bouncy the borders are when they are hit by momentum scrolls: "none", "minimum", "low", "medium", "high", or "maximum" _(default: "medium")_
-- **setEnableScrollStopOnPointerDown** — _Boolean_ — Enable scroll-stopping on pointerdown events _(default: true)_
-- **setPreventDefaultSelectors** — _Array_ — The list of [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that the scroller should prevent default behavior on, i.e. not handle input on _(default: [])_
+### **Static** Methods:
 
-### Example of Using Setters to Customize a MomentumScroller:
+- **autoCreateScrollers** — Searches for compatible elements to create MomentumScrollers. It returns the MomentumScroller class.
+  - _Options Object:_
+    - _rootSelector_ — _":root"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [CSS selector](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that will be used as the starting point in the process of automatically creating MomentumScrollers. The _rootSelector_ itself is included in the process. Ancestors of the _rootSelector_ will not be included.
+    - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of MomentumScroller instances after creation. If set to true, instances will be activated after they are created. If set to false, instances will not be activated after they are created.
+    - _createScrollerFromBody_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines if MomentumScroller makes an exception on how it handles the [\<body\>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/body) element during the scroller creation process. This setting is only applicable when the _rootSelector_ is set to ":root" or an equivalent selector for the document root, and the document root has scrollable area. If set to true and applicable, the \<body\> element will gain MomentumScroller functionality. This process may not be desirable in some cases since it applies custom CSS declarations to the \<html\> and \<body\> elements. If set to false, the \<body\> element will only gain MomentumScroller functionality if it fulfills the normal criteria for scrollability.<br><br>
+- **createScroller** — Creates a MomentumScroller. It returns a MomentumScroller instance.
+  - _scrollContainer_ — The [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) that should gain MomentumScroller functionality.
+  - _Options Object:_
+    - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of a MomentumScroller instance after creation. If set to true, an instance will be activated after it is created. If set to false, an instance will not be activated after it is created.<br><br>
+- **setSelectorsOfElementsScrollerShouldIgnore** — Sets the selectors that MomentumScroller should ignore. It is like calling the [preventDefault method](https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault); if a [pointerdown](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event) EventTarget itself or one of its ancestors matches a selector in this list, MomentumScroller will not initiate a momentum scroll. It returns the MomentumScroller class.
+  - _selectors_ — _[
+    "input[type=email]",
+    "input[type=number]",
+    "input[type=password]",
+    "input[type=range]",
+    "input[type=search]",
+    "input[type=tel]",
+    "input[type=text]",
+    "input[type=url]",
+    "textarea",
+    ]_ — An [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of selectors that should be ignored by MomentumScroller.
+  - _Options Object:_
+    - _keepCurrentSelectors_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines how new selectors are added. If set to true, the new selectors will be added to the current list of selectors. If set to false, the new selectors will overwrite the current list of selectors.<br><br>
+- **setSelectorsOfClickableElements** — Sets the selectors that MomentumScroller should provide wiggle room for so that they can receive click events. This wiggle room ensures that interactive elements can receive clicks while also allowing MomentumScroller to regain control and perform its functions when appropriate. It returns the MomentumScroller class.
+  - _selectors_ — _[
+    "a",
+    "button",
+    "details",
+    "input[type=button]",
+    "input[type=checkbox]",
+    "input[type=color]",
+    "input[type=date]",
+    "input[type=datetime-local]",
+    "input[type=file]",
+    "input[type=image]",
+    "input[type=month]",
+    "input[type=radio]",
+    "input[type=reset]",
+    "input[type=submit]",
+    "input[type=time]",
+    "input[type=week]",
+    "summary",
+    ]_ — An [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of selectors of elements that need to be able to receive click events.
+  - _Options Object:_
+    - _keepCurrentSelectors_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines how new selectors are added. If set to true, the new selectors will be added to the current list of selectors. If set to false, the new selectors will overwrite the current list of selectors.<br><br>
+- **setSelectorsOfOtherTouchScrollers** — Sets the selectors that MomentumScroller should provide wiggle room for so that they can perform their own touch-scrolling-like functionality. This wiggle room ensures that they can scroll as intended while also allowing MomentumScroller to regain control and perform its functions when appropriate. It returns the MomentumScroller class.
+  - _selectors_ — _[ ]_ — An [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of selectors of elements that have touch-scrolling-like functionality similar to MomentumScroller.
+  - _Options Object:_
+    - _keepCurrentSelectors_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines how new selectors are added. If set to true, the new selectors will be added to the current list of selectors. If set to false, the new selectors will overwrite the current list of selectors.<br><br>
+- **getScroller** — Gets and returns a MomentumScroller instance if found, which gives you access to its methods; Otherwise, returns undefined.
+  - _scrollContainer_ — The [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) that has MomentumScroller functionality.<br><br>
+- **getAllScrollers** — Gets and returns an [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of all MomentumScroller instances. The [_forEach_ method](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach) may then be called to perform batch operations.
 
-```javascript
-const momentumScrollerInstance = new MomentumScroller(
-  document.querySelector("body")
-)
-  .setGrabCursor("var(--custom-grab-cursor)")
-  .setGrabbingCursor("var(--custom-grabbing-cursor)")
-  .setDecelerationLevel("low")
-  .setPreventDefaultSelectors(["header", "textarea"])
-  .activate();
-```
+### **Instance** Methods:
+
+- **getScrollerData** — Gets and returns an [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#objects) containing the following instance properties: active, scrollContainer, scrollableAxes, scrolling.<br><br>
+- **setDecelerationLevel** — Sets the deceleration of momentum scrolls. It returns the MomentumScroller instance.
+  - _decelerationLevel_ — _"medium"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the deceleration level, which may be any of the following values: "none", "minimum", "low", "medium", "high", or "maximum".<br><br>
+- **setBorderBouncinessLevel** — Sets the bounciness of borders impacted by momentum scrolls. It returns the MomentumScroller instance.
+  - _borderBouncinessLevel_ — _"medium"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the border bounciness level, which may be any of the following values: "none", "minimum", "low", "medium", "high", or "maximum".<br><br>
+- **setGrabCursor** — Sets the [grab cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor). It returns the MomentumScroller instance.
+  - _grabCursor_ — _"grab"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [grab cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor).<br><br>
+- **setGrabbingCursor** — Sets the [grabbing cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor). It returns the MomentumScroller instance.
+  - _grabbingCursor_ — _"grabbing"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [grabbing cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor).<br><br>
+- **setAllowHorizontalScrolling** — Sets whether the MomentumScroller is allowed to scroll horizontally. It returns the MomentumScroller instance.
+  - _allowHorizontalScrolling_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the scrollability of a MomentumScroller instance's horizontal axis. If set to true, the instance will be able to perform momentum scrolls on the vertical axis if the vertical axis is scrollable. If set to false, the instance will not be able to perform scrolls on the vertical axis.<br><br>
+- **setAllowVerticalScrolling** — Sets whether the MomentumScroller is allowed to scroll vertically. It returns the MomentumScroller instance.
+  - _allowVerticalScrolling_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the scrollability of a MomentumScroller instance's vertical axis. If set to true, the instance will be able to perform momentum scrolls on the horizontal axis if the horizontal axis is scrollable. If set to false, the instance will not be able to perform scrolls on the horizontal axis.<br><br>
+- **activate** — Allows the MomentumScroller instance to perform momentum scrolls. To function properly, it changes the CSS cursor, disallows text selection, and disallows dragging. It returns the MomentumScroller instance.<br><br>
+- **deactivate** — Blocks the MomentumScroller instance from performing momentum scrolls. It reverts the CSS cursor, allows text selection, and allows dragging. It returns the MomentumScroller instance.<br><br>
+- **toggleActivation** — Toggles the MomentumScroller activation state. It returns the MomentumScroller instance.
 
 ## **Events**
 
-### Event Types:
+Below is a list of all [CustomEvents](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/CustomEvent) dispatched by MomentumScroller. You can listen for them with the [addEventListener](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener) method.
 
-- **momentumScrollActivate** — Dispatches when a momentum scroller is activated
-- **momentumScrollDeactivate** — Dispatches when a momentum scroller is deactivated
-- **momentumScrollPointerDown** — Dispatches on scroll container pointerdown events
-- **momentumScrollPointerUp** — Dispatches on scroll container pointerup events
-- **momentumScrollStart** — Dispatches when a momentum scroll starts
-- **momentumScroll** — Dispatches continuously while momentum scrolling
-- **momentumScrollStop** — Dispatches when a momentum scroll stops
-- **bounceStart** — Dispatches when a bounce starts
-- **bounceStop** — Dispatches when a bounce stops
+Event names are bolded and are followed by a description of the trigger that leads to their dispatch.
 
-### Event Data:
+If an event includes custom properties in the [CustomEvent details object](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/detail), they are listed below the event description. Custom property names are italicized and are followed by a description.
 
-- **interruptedBy** — The cause of a scroll's interruption if it was interrupted; otherwise, null.
-- **startPoint** — The starting coordinates
-- **endPoint** — The ending coordinates
-- **distance** — The total scroll distance
-- **duration** — The duration of the scroll if it were not limited by the size of the scroll container
-- **elapsedTime** — The elapsed time of the scroll
-- **scrollContainer** — Reference to the scroll container
-- **momentumScroller** — Reference to the instance
+### **Static** Events:
 
-### Example of Listening to MomentumScroller Events:
+- **momentumScrollerRoute** — Dispatches when MomentumScroller selects an [EventTarget](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) to be the receiver of [PointerEvents](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent). The EventTarget may be the scroll container of a MomentumScroller instance, or may match one of the selectors in the _selectorsOfClickableElements_ or _selectorsOfOtherTouchScrollers_ static properties.
+  - _routeTarget_ — The EventTarget that MomentumScroller selected to be the handler of PointerEvents.
+  - _routedEvent_ — A routedEvent is only included when MomentumScroller performs a threshold test to determine which one of multiple EventTargets should be the handler of PointerEvents. This event, a [pointermove event](https://developer.mozilla.org/en-US/docs/Web/API/Document/pointermove_event), provides the last known coordinates of the pointer so that the _routeTarget_ can smoothly transition into handling the event.
 
-```javascript
-document.addEventListener("momentumScrollActivate", (event) => {
-  const scrollData = event.detail; // CustomEvent data is located in event.detail
-  if (scrollData.scrollContainer === document.querySelector("body")) {
-    // Do something
-  }
-});
-```
+### **Instance** Events:
 
-## **Promise**
-
-The momentum scroll method returns a promise that resolves upon scroll completion, and the promise includes the same data as the event data above.
-
-## **Miscellaneous**
-
-### The isScrolling Property:
-
-An instance's <code>isScrolling</code> property tells you if it is scrolling or not
-
-```javascript
-if (momentumScrollerInstance.isScrolling) {
-  // Do something
-}
-```
-
-### The MomentumScroller Map:
-
-The static property, <code>MomentumScroller.scrollerMap</code>, is a map of scroll containers mapped to their instances. Since it is a JavaScript [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) object, you can use any of the available methods that Map provides.
-
-Since the map is iterable, one of many potential uses could be to iterate through all scrollers and toggle them on or off simultaneously:
-
-```javascript
-MomentumScroller.scrollerMap.forEach((momentumScroller) =>
-  momentumScroller.toggleOnOff()
-);
-```
-
-### Pause and Unpause Methods:
-
-The <code>pause()</code> method is useful when you want to temporarily pause most of the MomentumScroller's handling of a pointerdown event to allow some other element to manage the pointerdown event, but still allow the MomentumScroller to keep track of pointer position. This ensures a smooth transition back to the MomentumScroller when it is unpaused with the <code>unpause()</code> method.
-
-For an example of this effect, please visit [damianmgarcia.com](https://damianmgarcia.com). Click and hold on a link or video and, while holding, move your mouse cursor up or down until you see the link or video smoothly relinquish its control of the pointer to the momentum scroller.
+- **momentumScrollerActivate** — Dispatches when a momentum scroller is activated
+  - _scrollContainer_ — The MomentumScroller instance's scroll container
+  - _initialVelocityX_ — The initial pointer velocity on the x axis
+  - _initialVelocityY_ — The initial pointer velocity on the y axis
+  - _initialVelocity_ — The hypotenuse of the initial pointer velocities
+  - _startPoint_ — The pointer's starting coordinates
+  - _endPoint_ — The pointer's ending coordinates
+  - _distance_ — The distance scrolled after the pointerup event
+  - _elapsedTime_ — The elapsed time of the scroll
+  - _interruptedBy_ — The cause of a scroll's interruption if it was interrupted; Otherwise, null<br><br>
+- **momentumScrollerDeactivate** — Dispatches when a momentum scroller is deactivated
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerScrollStart** — Dispatches at the beginning of a momentum scroll
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerScroll** — Dispatches continuously while momentum scrolling
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerScrollStop** — Dispatches at the end of a momentum scroll
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerBounceStart** — Dispatches at the beginning of a bounce
+  - _scrollContainer_ — The MomentumScroller instance's scroll container
+  - _startTimeX_ — The timestamp at the moment the momentum scroll impacted a border on the x axis
+  - _startTimeY_ — The timestamp at the moment the momentum scroll impacted a border on the y axis
+  - _initialVelocityX_ — The velocity of the momentum scroll at the moment it impacted a border on the x axis
+  - _initialVelocityY_ — The velocity of the momentum scroll at the moment it impacted a border on the y axis
+  - _elapsedTimeX_ — The elapsed time of the bounce that occurred on the x axis
+  - _elapsedTimeY_ — The elapsed time of the bounce that occurred on the y axis
+  - _interruptedBy_ — The cause of a bounce's interruption if it was interrupted; Otherwise, null<br><br>
+- **momentumScrollerBounceStop** — Dispatches when a bounce stops
+  - Same as momentumScrollerBounceStart
