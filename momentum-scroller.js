@@ -79,7 +79,12 @@ class MomentumScroller {
         "A MomentumScroller instance for this scrollContainer already exists"
       );
 
-    if (!this.#pointerDownRouterActivated) this.#activatePointerDownRouter();
+    if (!this.#pointerDownRouterActivated) {
+      document.addEventListener("pointerdown", (event) =>
+        this.#pointerDownRouter(event)
+      );
+      this.#pointerDownRouterActivated = true;
+    }
 
     const scroller = new this(scrollContainer, momentumScrollerKey);
 
@@ -99,13 +104,6 @@ class MomentumScroller {
   }
 
   static #pointerDownRouterActivated = false;
-
-  static #activatePointerDownRouter() {
-    document.addEventListener("pointerdown", (event) =>
-      this.#pointerDownRouter(event)
-    );
-    this.#pointerDownRouterActivated = true;
-  }
 
   static #selectorsOfElementsScrollerShouldIgnore = [
     "input[type=email]",
