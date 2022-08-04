@@ -2,9 +2,9 @@
 
 ## **Description**
 
-MomentumScroller is a JavaScript module that provides easy-to-use and highly-customizable momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
+MomentumScroller is a JavaScript module that provides easy-to-use and customizable momentum scrolling functionality for your website's mouse-users. It allows mouse-users to flick through websites exactly as they would on touch-screen devices. If you would like to see it in action, check out the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
-Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is a JavaScript module that provides easy-to-use and highly-customizable smooth scrolling functionality for your website and is designed to work well with MomentumScroller.
+Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is a JavaScript module that provides easy-to-use and customizable smooth scrolling functionality for your website and is designed to work well with MomentumScroller.
 
 ## **Features**
 
