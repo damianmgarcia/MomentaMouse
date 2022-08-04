@@ -15,7 +15,7 @@ Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller
 
 ## **Installation**
 
-### [Import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the MomentumScroller module:
+### [Import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) MomentumScroller:
 
 ```javascript
 import { MomentumScroller } from "https://damianmgarcia.com/scripts/modules/momentum-scroller.js";
