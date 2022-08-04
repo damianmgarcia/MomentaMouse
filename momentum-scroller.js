@@ -14,7 +14,7 @@ class MomentumScroller {
 
   static autoCreateScrollers({
     rootSelector = ":root",
-    autoActivate = true,
+    activateImmediately = true,
     convertBodyToScroller = true,
   } = {}) {
     validateArgument("rootSelector", rootSelector, {
@@ -44,7 +44,7 @@ class MomentumScroller {
         if (!xAxisIsScrollable && !yAxisIsScrollable) return;
 
         if (element !== documentRoot)
-          return this.createScroller(element, autoActivate);
+          return this.createScroller(element, { activateImmediately });
 
         if (!convertBodyToScroller) return;
 
@@ -55,13 +55,13 @@ class MomentumScroller {
         body.style.setProperty("margin", "0");
         if (xAxisIsScrollable) body.style.setProperty("width", "100vw");
         if (yAxisIsScrollable) body.style.setProperty("height", "100vh");
-        this.createScroller(body, autoActivate);
+        this.createScroller(body, { activateImmediately });
       });
 
     return this;
   }
 
-  static createScroller(scrollContainer, autoActivate = true) {
+  static createScroller(scrollContainer, { activateImmediately = true } = {}) {
     if (deviceHeuristics.isTouchScreen)
       throw new Error(
         "MomentumScroller instantiation blocked. Due to conflicts between native momentum scrolling systems and MomentumScroller.js, touch screen devices, such as this one, are not supported."
@@ -70,7 +70,7 @@ class MomentumScroller {
     validateArgument("scrollContainer", scrollContainer, {
       allowedPrototypes: [Element],
     });
-    validateArgument("autoActivate", autoActivate, {
+    validateArgument("activateImmediately", activateImmediately, {
       allowedTypes: ["boolean"],
     });
 
@@ -83,7 +83,7 @@ class MomentumScroller {
 
     const scroller = new this(scrollContainer, momentumScrollerKey);
 
-    if (autoActivate) scroller.activate();
+    if (activateImmediately) scroller.activate();
 
     this.#scrollerMap.set(scrollContainer, scroller);
 
@@ -159,7 +159,7 @@ class MomentumScroller {
 
   static setSelectorsOfElementsScrollerShouldIgnore(
     selectors = [],
-    keepCurrentSelectors = true
+    { keepCurrentSelectors = true } = {}
   ) {
     this.verifySelectors("selectorsOfElementsScrollerShouldIgnore", selectors);
 
@@ -175,7 +175,7 @@ class MomentumScroller {
 
   static setSelectorsOfClickableElements(
     selectors = [],
-    keepCurrentSelectors = true
+    { keepCurrentSelectors = true } = {}
   ) {
     this.verifySelectors("selectorsOfClickableElements", selectors);
 
@@ -191,7 +191,7 @@ class MomentumScroller {
 
   static setSelectorsOfOtherTouchScrollers(
     selectors = [],
-    keepCurrentSelectors = true
+    { keepCurrentSelectors = true } = {}
   ) {
     this.verifySelectors("selectorsOfOtherTouchScrollers", selectors);
 
@@ -534,8 +534,8 @@ class MomentumScroller {
   getScrollerData() {
     return {
       active: this.#active,
-      scrollContainer: this.#scrollContainer,
       scrollableAxes: this.#getUpdatedScrollableAxes(),
+      scrollContainer: this.#scrollContainer,
       scrolling: this.#scrolling,
     };
   }
@@ -611,19 +611,18 @@ class MomentumScroller {
   activate() {
     if (this.#active) return;
 
+    this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
+    this.#scrollContainer.style.setProperty("-webkit-user-select", "none");
+    this.#scrollContainer.style.setProperty("user-select", "none");
+    this.#active = true;
+
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentumScrollerActivate", {
         bubbles: true,
         cancelable: true,
-        detail: this.#getEventData(),
+        detail: this.#getScrollEventData(),
       })
     );
-
-    this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
-    this.#scrollContainer.style.setProperty("-webkit-user-select", "none");
-    this.#scrollContainer.style.setProperty("user-select", "none");
-
-    this.#active = true;
 
     return this;
   }
@@ -631,26 +630,24 @@ class MomentumScroller {
   deactivate() {
     if (!this.#active) return;
 
-    this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerDeactivate", {
-        bubbles: true,
-        cancelable: true,
-        detail: this.#getEventData(),
-      })
-    );
-
     if (this.#scrollResolve)
       this.#stopScroll({
         interruptedBy: "Momentum scroller deactivation",
       });
 
     this.#undoPointerDownChanges();
-
     this.#scrollContainer.style.removeProperty("cursor");
     this.#scrollContainer.style.removeProperty("-webkit-user-select");
     this.#scrollContainer.style.removeProperty("user-select");
-
     this.#active = false;
+
+    this.#scrollContainer.dispatchEvent(
+      new CustomEvent("momentumScrollerDeactivate", {
+        bubbles: true,
+        cancelable: true,
+        detail: this.#getScrollEventData(),
+      })
+    );
 
     return this;
   }
@@ -699,14 +696,6 @@ class MomentumScroller {
     this.#pointerIsDown = true;
     this.#pointerId = event.pointerId;
     this.#scrollContainer.setPointerCapture(event.pointerId);
-
-    this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerPointerDown", {
-        bubbles: true,
-        cancelable: true,
-        detail: this.#getEventData(),
-      })
-    );
 
     if (this.#scrollResolve)
       this.#stopScroll({
@@ -871,14 +860,6 @@ class MomentumScroller {
   }
 
   #undoPointerDownChanges() {
-    this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerPointerUp", {
-        bubbles: true,
-        cancelable: true,
-        detail: this.#getEventData(),
-      })
-    );
-
     this.#pointerMoveUpCancelAbortController.abort();
 
     if (this.#pointerId)
@@ -963,7 +944,7 @@ class MomentumScroller {
       scrollInitialVelocityY = getVelocity("y", endPositionY);
     }
 
-    this.scroll({
+    this.#scroll({
       scrollInitialVelocityX,
       scrollInitialVelocityY,
     });
@@ -972,31 +953,30 @@ class MomentumScroller {
   }
 
   #scrolling = false;
-  get scrolling() {
-    return this.#scrolling;
-  }
-  #previousScrollDirectionX;
-  #previousScrollDirectionY;
-  #previousScrollDuration;
-  #previousScrollStartTimestamp;
-  #previousScrollStopTimestamp;
-  #scrollCurrentVelocityX;
-  #scrollCurrentVelocityY;
-  #scrollDeceleration;
-  #scrollDuration;
-  #scrollElapsedTime;
-  #scrollInitialVelocityX;
-  #scrollInitialVelocityXMultiplier;
-  #scrollInitialVelocityY;
-  #scrollInitialVelocityYMultiplier;
+  #previousScrollDirectionX = NaN;
+  #previousScrollDirectionY = NaN;
+  #previousScrollDuration = NaN;
+  #previousScrollStartTimestamp = NaN;
+  #previousScrollStopTimestamp = NaN;
+  #scrollCurrentVelocityX = NaN;
+  #scrollCurrentVelocityY = NaN;
+  #scrollDeceleration = NaN;
+  #scrollDuration = NaN;
+  #scrollElapsedTime = NaN;
+  #scrollEndingPointX = NaN;
+  #scrollEndingPointY = NaN;
+  #scrollInitialVelocity = NaN;
+  #scrollInitialVelocityX = NaN;
+  #scrollInitialVelocityXMultiplier = 1;
+  #scrollInitialVelocityY = NaN;
+  #scrollInitialVelocityYMultiplier = 1;
   #scrollRafId;
   #scrollResolve;
-  #scrollStartingPointX;
-  #scrollStartingPointY;
-  #scrollStartTime;
-  #scrollVelocityHypotenuse;
+  #scrollStartingPointX = NaN;
+  #scrollStartingPointY = NaN;
+  #scrollStartTime = NaN;
 
-  scroll({
+  #scroll({
     scrollInitialVelocityX = 0,
     scrollInitialVelocityY = 0,
     currentTime = NaN,
@@ -1076,7 +1056,7 @@ class MomentumScroller {
       this.#scrollInitialVelocityY =
         scrollInitialVelocityY * this.#scrollInitialVelocityYMultiplier;
 
-      this.#scrollVelocityHypotenuse = Math.hypot(
+      this.#scrollInitialVelocity = Math.hypot(
         this.#scrollInitialVelocityX,
         this.#scrollInitialVelocityY
       );
@@ -1086,13 +1066,11 @@ class MomentumScroller {
       );
 
       this.#scrollDuration =
-        this.#scrollVelocityHypotenuse / this.#scrollDeceleration;
+        this.#scrollInitialVelocity / this.#scrollDeceleration;
 
       this.#previousScrollDirectionX = scrollDirectionX;
       this.#previousScrollDirectionY = scrollDirectionY;
       this.#previousScrollDuration = this.#scrollDuration;
-      this.#scrollStartingPointX = this.#scrollContainer.scrollLeft;
-      this.#scrollStartingPointY = this.#scrollContainer.scrollTop;
 
       const getScrollDistance = (initialVelocity) =>
         (Math.abs(initialVelocity) * this.#scrollDuration) / 2;
@@ -1128,7 +1106,7 @@ class MomentumScroller {
       return new Promise((resolve) => {
         this.#scrollResolve = resolve;
         this.#scrollRafId = requestAnimationFrame((currentTime) => {
-          this.scroll({
+          this.#scroll({
             currentTime,
           });
         });
@@ -1138,23 +1116,17 @@ class MomentumScroller {
     if (!this.#scrollStartTime) {
       this.#scrollStartTime = currentTime;
       this.#scrolling = true;
+      this.#scrollStartingPointX = this.#scrollContainer.scrollLeft;
+      this.#scrollStartingPointY = this.#scrollContainer.scrollTop;
 
       this.#scrollContainer.dispatchEvent(
         new CustomEvent("momentumScrollerScrollStart", {
           bubbles: true,
           cancelable: true,
-          detail: this.#getEventData(),
+          detail: this.#getScrollEventData(),
         })
       );
     }
-
-    this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerScroll", {
-        bubbles: true,
-        cancelable: true,
-        detail: this.#getEventData(),
-      })
-    );
 
     this.#scrollElapsedTime = currentTime - this.#scrollStartTime;
     const elapsedTimeRatio = Math.min(
@@ -1166,7 +1138,7 @@ class MomentumScroller {
       Math.sign(initialVelocity) *
       (Math.abs(initialVelocity) -
         this.#scrollDeceleration *
-          (Math.abs(initialVelocity) / this.#scrollVelocityHypotenuse) *
+          (Math.abs(initialVelocity) / this.#scrollInitialVelocity) *
           this.#scrollElapsedTime);
 
     this.#scrollCurrentVelocityX = getCurrentVelocity(
@@ -1182,7 +1154,7 @@ class MomentumScroller {
         Math.sign(initialVelocity) *
           0.5 *
           this.#scrollDeceleration *
-          (Math.abs(initialVelocity) / this.#scrollVelocityHypotenuse) *
+          (Math.abs(initialVelocity) / this.#scrollInitialVelocity) *
           Math.pow(this.#scrollElapsedTime, 2));
 
     if (this.#xAxisIsScrollable)
@@ -1196,6 +1168,17 @@ class MomentumScroller {
         this.#scrollStartingPointY,
         this.#scrollInitialVelocityY
       );
+
+    this.#scrollEndingPointX = this.#scrollContainer.scrollLeft;
+    this.#scrollEndingPointY = this.#scrollContainer.scrollTop;
+
+    this.#scrollContainer.dispatchEvent(
+      new CustomEvent("momentumScrollerScroll", {
+        bubbles: true,
+        cancelable: true,
+        detail: this.#getScrollEventData(),
+      })
+    );
 
     if (this.#borderBouncinessLevel !== "none") {
       const tryingToScrollBeyondHorizontalEdge =
@@ -1249,7 +1232,7 @@ class MomentumScroller {
       !atVertexOfTwoDimensionalScroller
     ) {
       this.#scrollRafId = requestAnimationFrame((currentTime) => {
-        this.scroll({
+        this.#scroll({
           currentTime,
         });
       });
@@ -1259,22 +1242,20 @@ class MomentumScroller {
       atEdgeOfOneDimensionalScroller ||
       atVertexOfTwoDimensionalScroller
     ) {
-      const resolveData = this.#getEventData();
-
-      this.#previousScrollDirectionX = null;
-      this.#previousScrollDirectionY = null;
-      this.#previousScrollStartTimestamp = null;
-      this.#scrollCurrentVelocityX = null;
-      this.#scrollCurrentVelocityY = null;
+      this.#previousScrollDirectionX = NaN;
+      this.#previousScrollDirectionY = NaN;
+      this.#previousScrollStartTimestamp = NaN;
+      this.#scrollCurrentVelocityX = NaN;
+      this.#scrollCurrentVelocityY = NaN;
       this.#scrollInitialVelocityXMultiplier = 1;
       this.#scrollInitialVelocityYMultiplier = 1;
 
-      return this.#stopScroll(resolveData);
+      return this.#stopScroll();
     }
   }
 
   #stopScroll(extraData = {}) {
-    const eventData = this.#getEventData(extraData);
+    const eventData = this.#getScrollEventData(extraData);
 
     this.#scrollResolve(eventData);
 
@@ -1289,37 +1270,34 @@ class MomentumScroller {
     this.#previousScrollStopTimestamp = Date.now();
     cancelAnimationFrame(this.#scrollRafId);
     this.#scrolling = false;
-    this.#scrollDeceleration = null;
-    this.#scrollDuration = null;
-    this.#scrollElapsedTime = null;
+    this.#scrollDeceleration = NaN;
+    this.#scrollDuration = NaN;
+    this.#scrollElapsedTime = NaN;
+    this.#scrollEndingPointX = NaN;
+    this.#scrollEndingPointY = NaN;
     this.#scrollResolve = null;
-    this.#scrollStartingPointX = null;
-    this.#scrollStartingPointY = null;
-    this.#scrollStartTime = null;
-    this.#scrollVelocityHypotenuse = null;
-    this.#scrollInitialVelocityX = null;
-    this.#scrollInitialVelocityY = null;
+    this.#scrollStartingPointX = NaN;
+    this.#scrollStartingPointY = NaN;
+    this.#scrollStartTime = NaN;
+    this.#scrollInitialVelocity = NaN;
+    this.#scrollInitialVelocityX = NaN;
+    this.#scrollInitialVelocityY = NaN;
   }
 
-  #getEventData(extraData) {
+  #getScrollEventData(extraData) {
     const eventData = {
-      interruptedBy: null,
-      startPoint: [this.#scrollStartingPointX, this.#scrollStartingPointY],
-      endPoint: [
-        this.#scrollContainer.scrollLeft,
-        this.#scrollContainer.scrollTop,
-      ],
-      distance: Math.hypot(
-        Math.abs(this.#scrollStartingPointX - this.#scrollContainer.scrollLeft),
-        Math.abs(this.#scrollStartingPointY - this.#scrollContainer.scrollTop)
-      ),
+      scrollContainer: this.#scrollContainer,
       initialVelocityX: this.#scrollInitialVelocityX,
       initialVelocityY: this.#scrollInitialVelocityY,
-      velocityHypotenuse: this.#scrollVelocityHypotenuse,
-      duration: this.#scrollDuration,
+      initialVelocity: this.#scrollInitialVelocity,
+      startPoint: [this.#scrollStartingPointX, this.#scrollStartingPointY],
+      endPoint: [this.#scrollEndingPointX, this.#scrollEndingPointY],
+      distance: Math.hypot(
+        Math.abs(this.#scrollStartingPointX - this.#scrollEndingPointX),
+        Math.abs(this.#scrollStartingPointY - this.#scrollEndingPointY)
+      ),
       elapsedTime: this.#scrollElapsedTime,
-      scrollContainer: this.#scrollContainer,
-      momentumScroller: this,
+      interruptedBy: null,
     };
 
     if (extraData && typeof extraData === "object")
@@ -1328,22 +1306,22 @@ class MomentumScroller {
     return eventData;
   }
 
-  #bounceDamping;
-  #bounceElapsedTimeX = 0;
-  #bounceElapsedTimeY = 0;
-  #bounceInitialPositionX = 0;
-  #bounceInitialPositionY = 0;
-  #bounceInitialVelocityX = 0;
-  #bounceInitialVelocityY = 0;
+  #bounceDamping = NaN;
+  #bounceElapsedTimeX = NaN;
+  #bounceElapsedTimeY = NaN;
+  #bounceInitialPositionX = NaN;
+  #bounceInitialPositionY = NaN;
+  #bounceInitialVelocityX = NaN;
+  #bounceInitialVelocityY = NaN;
   #bounceRafId;
   #bounceResolve;
-  #bounceStartTimeX;
-  #bounceStartTimeY;
-  #bounceTimeAtMaximumDisplacment;
-  #bounceXFallingOnly;
-  #bounceYFallingOnly;
-  #bounceXBouncing;
-  #bounceYBouncing;
+  #bounceStartTimeX = NaN;
+  #bounceStartTimeY = NaN;
+  #bounceTimeAtMaximumDisplacment = NaN;
+  #bounceFallingOnlyX;
+  #bounceFallingOnlyY;
+  #bounceBouncingX;
+  #bounceBouncingY;
 
   #getCurrentPositionX() {
     return getTransformProperties(this.#scrollContainer).translateX;
@@ -1387,9 +1365,9 @@ class MomentumScroller {
 
       this.#bounceTimeAtMaximumDisplacment = 1 / this.#bounceDamping;
 
-      this.#bounceXFallingOnly =
+      this.#bounceFallingOnlyX =
         initialVelocityX === 0 && currentPositionX !== 0;
-      this.#bounceYFallingOnly =
+      this.#bounceFallingOnlyY =
         initialVelocityY === 0 && currentPositionY !== 0;
 
       const getInitialVelocity = (currentPosition) =>
@@ -1400,36 +1378,36 @@ class MomentumScroller {
             -1 * this.#bounceDamping * this.#bounceTimeAtMaximumDisplacment
           ));
 
-      if (!this.#bounceXBouncing) {
-        if (this.#bounceXFallingOnly) {
+      if (!this.#bounceBouncingX) {
+        if (this.#bounceFallingOnlyX) {
           initialVelocityX = getInitialVelocity(currentPositionX);
           this.#bounceInitialVelocityX = initialVelocityX / Math.E;
           this.#bounceInitialPositionX =
             this.#bounceInitialVelocityX * this.#bounceTimeAtMaximumDisplacment;
-        } else if (!this.#bounceXFallingOnly) {
+        } else if (!this.#bounceFallingOnlyX) {
           this.#bounceInitialVelocityX = initialVelocityX * 0.1;
           this.#bounceInitialPositionX = 0;
         }
-        if (this.#bounceInitialVelocityX) this.#bounceXBouncing = true;
+        if (this.#bounceInitialVelocityX) this.#bounceBouncingX = true;
       }
 
-      if (!this.#bounceYBouncing) {
-        if (this.#bounceYFallingOnly) {
+      if (!this.#bounceBouncingY) {
+        if (this.#bounceFallingOnlyY) {
           initialVelocityY = getInitialVelocity(currentPositionY);
           this.#bounceInitialVelocityY = initialVelocityY / Math.E;
           this.#bounceInitialPositionY =
             this.#bounceInitialVelocityY * this.#bounceTimeAtMaximumDisplacment;
-        } else if (!this.#bounceYFallingOnly) {
+        } else if (!this.#bounceFallingOnlyY) {
           this.#bounceInitialVelocityY = initialVelocityY * 0.1;
           this.#bounceInitialPositionY = 0;
         }
-        if (this.#bounceInitialVelocityY) this.#bounceYBouncing = true;
+        if (this.#bounceInitialVelocityY) this.#bounceBouncingY = true;
       }
 
       if (
-        this.#bounceXBouncing &&
-        this.#bounceYBouncing &&
-        !(this.#bounceXFallingOnly && this.#bounceYFallingOnly)
+        this.#bounceBouncingX &&
+        this.#bounceBouncingY &&
+        !(this.#bounceFallingOnlyX && this.#bounceFallingOnlyY)
       )
         return;
 
@@ -1443,23 +1421,23 @@ class MomentumScroller {
       });
     }
 
-    const dispatchMomentumScrollerBounceEvent = (detail) => {
+    const dispatchMomentumScrollerBounceEvent = () => {
       this.#scrollContainer.dispatchEvent(
         new CustomEvent("momentumScrollerBounceStart", {
           bubbles: true,
           cancelable: true,
-          detail,
+          detail: this.#getBounceEventData(),
         })
       );
     };
 
     if (this.#bounceInitialVelocityX && !this.#bounceStartTimeX) {
       this.#bounceStartTimeX = currentTime;
-      dispatchMomentumScrollerBounceEvent({ axis: "x" });
+      dispatchMomentumScrollerBounceEvent();
     }
     if (this.#bounceInitialVelocityY && !this.#bounceStartTimeY) {
       this.#bounceStartTimeY = currentTime;
-      dispatchMomentumScrollerBounceEvent({ axis: "y" });
+      dispatchMomentumScrollerBounceEvent();
     }
 
     if (this.#bounceStartTimeX)
@@ -1474,12 +1452,12 @@ class MomentumScroller {
     const translateX = getTranslate(
       this.#bounceInitialPositionX,
       this.#bounceInitialVelocityX,
-      this.#bounceElapsedTimeX
+      this.#bounceElapsedTimeX || 0
     );
     const translateY = getTranslate(
       this.#bounceInitialPositionY,
       this.#bounceInitialVelocityY,
-      this.#bounceElapsedTimeY
+      this.#bounceElapsedTimeY || 0
     );
 
     this.#scrollContainer.style.setProperty(
@@ -1494,12 +1472,12 @@ class MomentumScroller {
         Math.abs(translate) < 1 / (devicePixelRatio * 10));
 
     const xIsAtEquilibrium = getIsAtEquilibrium(
-      this.#bounceXBouncing,
+      this.#bounceBouncingX,
       this.#bounceElapsedTimeX,
       translateX
     );
     const yIsAtEquilibrium = getIsAtEquilibrium(
-      this.#bounceYBouncing,
+      this.#bounceBouncingY,
       this.#bounceElapsedTimeY,
       translateY
     );
@@ -1521,29 +1499,49 @@ class MomentumScroller {
   }
 
   #stopBounce(extraData = {}) {
-    this.#bounceResolve(extraData);
+    const eventData = this.#getBounceEventData(extraData);
+
+    this.#bounceResolve(eventData);
 
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentumScrollerBounceStop", {
         bubbles: true,
         cancelable: true,
-        detail: extraData,
+        detail: eventData,
       })
     );
 
     cancelAnimationFrame(this.#bounceRafId);
-    this.#bounceDamping = null;
-    this.#bounceInitialVelocityX = 0;
-    this.#bounceInitialVelocityY = 0;
-    this.#bounceXBouncing = false;
-    this.#bounceYBouncing = false;
-    this.#bounceStartTimeX = null;
-    this.#bounceStartTimeY = null;
-    this.#bounceElapsedTimeX = null;
-    this.#bounceElapsedTimeY = null;
-    this.#bounceXFallingOnly = null;
-    this.#bounceYFallingOnly = null;
+    this.#bounceDamping = NaN;
+    this.#bounceInitialVelocityX = NaN;
+    this.#bounceInitialVelocityY = NaN;
+    this.#bounceBouncingX = false;
+    this.#bounceBouncingY = false;
+    this.#bounceStartTimeX = NaN;
+    this.#bounceStartTimeY = NaN;
+    this.#bounceElapsedTimeX = NaN;
+    this.#bounceElapsedTimeY = NaN;
+    this.#bounceFallingOnlyX = null;
+    this.#bounceFallingOnlyY = null;
     this.#bounceResolve = null;
+  }
+
+  #getBounceEventData(extraData) {
+    const eventData = {
+      scrollContainer: this.#scrollContainer,
+      startTimeX: this.#bounceStartTimeX,
+      startTimeY: this.#bounceStartTimeY,
+      initialVelocityX: this.#bounceInitialVelocityX,
+      initialVelocityY: this.#bounceInitialVelocityY,
+      elapsedTimeX: this.#bounceElapsedTimeX,
+      elapsedTimeY: this.#bounceElapsedTimeY,
+      interruptedBy: null,
+    };
+
+    if (extraData && typeof extraData === "object")
+      Object.assign(eventData, extraData);
+
+    return eventData;
   }
 }
 
