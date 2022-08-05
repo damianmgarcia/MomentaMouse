@@ -522,11 +522,9 @@ class MomentumScroller {
         });
     });
 
-    this.#scrollContainer.querySelectorAll("*").forEach((element) =>
-      element.addEventListener("dragstart", (event) => {
-        if (this.#active) event.preventDefault();
-      })
-    );
+    this.#scrollContainer.addEventListener("dragstart", (event) => {
+      if (this.#active) event.preventDefault();
+    });
   }
 
   getScrollerData() {
