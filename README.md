@@ -111,13 +111,15 @@ If a method has parameters, they are listed in order below the method descriptio
   - _grabCursor_ — _"grab"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [grab cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor).<br><br>
 - **setGrabbingCursor** — Sets the [grabbing cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor). It returns the MomentumScroller instance.
   - _grabbingCursor_ — _"grabbing"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [grabbing cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor).<br><br>
-- **setAllowHorizontalScrolling** — Sets whether the MomentumScroller is allowed to scroll horizontally. It returns the MomentumScroller instance.
+- **setAllowCursorSwitching** — Sets whether the MomentumScroller instance is allowed to switch cursors on [pointerdown](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event) and [pointerup](https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerup_event) events. It returns the MomentumScroller instance.
+  - _allowCursorSwitching_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the cursor-switching function of the MomentumScroller instance. If set to true, the instance will switch the cursor to the grabbing cursor on pointerdown events and switch the cursor to the grab cursor on pointerup events. If set to false, the instance will not switch cursors. Switching cursors triggers [reflow](https://developer.mozilla.org/en-US/docs/Glossary/Reflow), which may cause performance issues.<br><br>
+- **setAllowHorizontalScrolling** — Sets whether the MomentumScroller instance is allowed to scroll horizontally. It returns the MomentumScroller instance.
   - _allowHorizontalScrolling_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the scrollability of a MomentumScroller instance's horizontal axis. If set to true, the instance will be able to perform momentum scrolls on the vertical axis if the vertical axis is scrollable. If set to false, the instance will not be able to perform scrolls on the vertical axis.<br><br>
-- **setAllowVerticalScrolling** — Sets whether the MomentumScroller is allowed to scroll vertically. It returns the MomentumScroller instance.
+- **setAllowVerticalScrolling** — Sets whether the MomentumScroller instance is allowed to scroll vertically. It returns the MomentumScroller instance.
   - _allowVerticalScrolling_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the scrollability of a MomentumScroller instance's vertical axis. If set to true, the instance will be able to perform momentum scrolls on the horizontal axis if the horizontal axis is scrollable. If set to false, the instance will not be able to perform scrolls on the horizontal axis.<br><br>
 - **activate** — Allows the MomentumScroller instance to perform momentum scrolls. To function properly, it changes the CSS cursor, disallows text selection, and disallows dragging. It returns the MomentumScroller instance.<br><br>
 - **deactivate** — Blocks the MomentumScroller instance from performing momentum scrolls. It reverts the CSS cursor, allows text selection, and allows dragging. It returns the MomentumScroller instance.<br><br>
-- **toggleActivation** — Toggles the MomentumScroller activation state. It returns the MomentumScroller instance.
+- **toggleActivation** — Toggles the MomentumScroller instance's activation state. It returns the MomentumScroller instance.
 
 ## **Events**
 
