@@ -1,6 +1,5 @@
 import {
   getDeviceHeuristics,
-  getTransformProperties,
   isPrimaryInput,
   ScrollContainerTools,
   validateArgument,
@@ -473,6 +472,7 @@ class MomentumScroller {
   #borderBouncinessLevel = "medium";
   #grabCursor = "grab";
   #grabbingCursor = "grabbing";
+  #allowCursorSwitching = true;
   #allowHorizontalScrolling = true;
   #allowVerticalScrolling = true;
   #decelerationLevelToQuantityMap = new Map([
@@ -563,7 +563,7 @@ class MomentumScroller {
         "grabCursor must be a String and should be appropriate for the CSS Cursor property (https://developer.mozilla.org/en-US/docs/Web/CSS/cursor)",
     });
 
-    if (!this.#pointerIsDown && this.#active)
+    if (this.#allowCursorSwitching && !this.#pointerIsDown && this.#active)
       this.#scrollContainer.style.setProperty("cursor", grabCursor);
 
     this.#grabCursor = grabCursor;
@@ -577,10 +577,19 @@ class MomentumScroller {
         "grabbingCursor must be a String and should be appropriate for the CSS Cursor property (https://developer.mozilla.org/en-US/docs/Web/CSS/cursor)",
     });
 
-    if (this.#pointerIsDown && this.#active)
+    if (this.#allowCursorSwitching && this.#pointerIsDown && this.#active)
       this.#scrollContainer.style.setProperty("cursor", grabbingCursor);
 
     this.#grabbingCursor = grabbingCursor;
+    return this;
+  }
+
+  setAllowCursorSwitching(allowCursorSwitching = true) {
+    validateArgument("allowCursorSwitching", allowCursorSwitching, {
+      allowedTypes: ["boolean"],
+    });
+
+    this.#allowCursorSwitching = allowCursorSwitching;
     return this;
   }
 
@@ -607,7 +616,8 @@ class MomentumScroller {
   activate() {
     if (this.#active) return;
 
-    this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
+    if (this.#allowCursorSwitching)
+      this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
     this.#scrollContainer.style.setProperty("-webkit-user-select", "none");
     this.#scrollContainer.style.setProperty("user-select", "none");
     this.#active = true;
@@ -632,7 +642,8 @@ class MomentumScroller {
       });
 
     this.#undoPointerDownChanges();
-    this.#scrollContainer.style.removeProperty("cursor");
+    if (this.#allowCursorSwitching)
+      this.#scrollContainer.style.removeProperty("cursor");
     this.#scrollContainer.style.removeProperty("-webkit-user-select");
     this.#scrollContainer.style.removeProperty("user-select");
     this.#active = false;
@@ -703,39 +714,19 @@ class MomentumScroller {
         interruptedBy: "Pointer down on scroll container",
       });
 
-    this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
+    if (this.#allowCursorSwitching)
+      this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
 
     let movementX = 0;
     let previousScreenX = event.screenX; // Safari returns undefined for event.movementX
     let movementY = 0;
     let previousScreenY = event.screenY; // Safari returns undefined for event.movementY
-    let currentTranslateX;
-    let currentTranslateY;
-    let bounciness;
-    if (this.#borderBouncinessLevel !== "none") {
-      this.#xAlreadyBounced = false;
-      this.#yAlreadyBounced = false;
 
-      const currentTransformProperties = getTransformProperties(
-        this.#scrollContainer
-      );
-
-      this.#scrollContainer.style.setProperty(
-        "transform",
-        `translateX(${currentTransformProperties.translateX}px) translateY(${currentTransformProperties.translateY}px)`
-      );
-
-      currentTranslateX = currentTransformProperties
-        ? currentTransformProperties.translateX
-        : 0;
-      currentTranslateY = currentTransformProperties
-        ? currentTransformProperties.translateY
-        : 0;
-
-      bounciness = this.#borderBouncinessLevelToQuantityMap.get(
-        this.#borderBouncinessLevel
-      );
-    }
+    this.#xAlreadyBounced = false;
+    this.#yAlreadyBounced = false;
+    const bounciness = this.#borderBouncinessLevelToQuantityMap.get(
+      this.#borderBouncinessLevel
+    );
 
     this.#pointerMoveUpCancelAbortController = new AbortController();
 
@@ -788,19 +779,19 @@ class MomentumScroller {
           (this.#scrollContainer.scrollLeft -= movementX);
         const updateScrollTop = () =>
           (this.#scrollContainer.scrollTop -= movementY);
-        const resetTranslateX = () => (currentTranslateX = 0);
-        const resetTranslateY = () => (currentTranslateY = 0);
+        const resetTranslateX = () => (this.#bounceCurrentTranslateX = 0);
+        const resetTranslateY = () => (this.#bounceCurrentTranslateY = 0);
 
         if (this.#borderBouncinessLevel !== "none") {
           const { atLeftEdge, atRightEdge, atTopEdge, atBottomEdge } =
             ScrollContainerTools.getEdgeStatus(this.#scrollContainer);
 
           const tryingToScrollBeyondHorizontalEdge =
-            (atLeftEdge && currentTranslateX + movementX > 0) ||
-            (atRightEdge && currentTranslateX + movementX < 0);
+            (atLeftEdge && this.#bounceCurrentTranslateX + movementX > 0) ||
+            (atRightEdge && this.#bounceCurrentTranslateX + movementX < 0);
           const tryingToScrollBeyondVerticalEdge =
-            (atBottomEdge && currentTranslateY + movementY < 0) ||
-            (atTopEdge && currentTranslateY + movementY > 0);
+            (atBottomEdge && this.#bounceCurrentTranslateY + movementY < 0) ||
+            (atTopEdge && this.#bounceCurrentTranslateY + movementY > 0);
 
           const getCurrentTranslate = (currentTranslate, movement) =>
             currentTranslate +
@@ -810,13 +801,13 @@ class MomentumScroller {
                   Math.abs(Math.pow(currentTranslate + movement, 2)) +
                   1));
           const updateCurrentTranslateX = () =>
-            (currentTranslateX = getCurrentTranslate(
-              currentTranslateX,
+            (this.#bounceCurrentTranslateX = getCurrentTranslate(
+              this.#bounceCurrentTranslateX,
               movementX
             ));
           const updateCurrentTranslateY = () =>
-            (currentTranslateY = getCurrentTranslate(
-              currentTranslateY,
+            (this.#bounceCurrentTranslateY = getCurrentTranslate(
+              this.#bounceCurrentTranslateY,
               movementY
             ));
 
@@ -836,9 +827,11 @@ class MomentumScroller {
 
           this.#scrollContainer.style.setProperty(
             "transform",
-            `translateX(${currentTranslateX}px) translateY(${currentTranslateY}px)`
+            `translateX(${this.#bounceCurrentTranslateX}px) translateY(${
+              this.#bounceCurrentTranslateY
+            }px)`
           );
-        } else if (!this.#borderBouncinessLevel !== "none") {
+        } else if (this.#borderBouncinessLevel === "none") {
           resetTranslateX();
           resetTranslateY();
           updateScrollLeft();
@@ -864,15 +857,11 @@ class MomentumScroller {
     this.#pointerIsDown = false;
     this.#pointerId = null;
 
-    this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
-
-    const currentTransformProperties = getTransformProperties(
-      this.#scrollContainer
-    );
+    if (this.#allowCursorSwitching)
+      this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
 
     const onBorder =
-      currentTransformProperties.translateX ||
-      currentTransformProperties.translateY;
+      this.#bounceCurrentTranslateX || this.#bounceCurrentTranslateY;
 
     if (onBorder) this.#bounce();
   }
@@ -1253,7 +1242,7 @@ class MomentumScroller {
   #stopScroll(extraData = {}) {
     const eventData = this.#getScrollEventData(extraData);
 
-    this.#scrollResolve(eventData);
+    if (this.#scrollResolve) this.#scrollResolve(eventData);
 
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentumScrollerScrollStop", {
@@ -1302,9 +1291,15 @@ class MomentumScroller {
     return eventData;
   }
 
+  #bounceBouncingX;
+  #bounceBouncingY;
+  #bounceCurrentTranslateX = 0;
+  #bounceCurrentTranslateY = 0;
   #bounceDamping = NaN;
   #bounceElapsedTimeX = NaN;
   #bounceElapsedTimeY = NaN;
+  #bounceFallingOnlyX;
+  #bounceFallingOnlyY;
   #bounceInitialPositionX = NaN;
   #bounceInitialPositionY = NaN;
   #bounceInitialVelocityX = NaN;
@@ -1314,17 +1309,6 @@ class MomentumScroller {
   #bounceStartTimeX = NaN;
   #bounceStartTimeY = NaN;
   #bounceTimeAtMaximumDisplacment = NaN;
-  #bounceFallingOnlyX;
-  #bounceFallingOnlyY;
-  #bounceBouncingX;
-  #bounceBouncingY;
-
-  #getCurrentPositionX() {
-    return getTransformProperties(this.#scrollContainer).translateX;
-  }
-  #getCurrentPositionY() {
-    return getTransformProperties(this.#scrollContainer).translateY;
-  }
 
   #bounce({
     initialVelocityX = 0,
@@ -1344,14 +1328,11 @@ class MomentumScroller {
         allowNonNaNNumbersOnly: true,
       });
 
-      const currentPositionX = this.#getCurrentPositionX();
-      const currentPositionY = this.#getCurrentPositionY();
-
       const nothing =
         initialVelocityX === 0 &&
         initialVelocityY === 0 &&
-        currentPositionX === 0 &&
-        currentPositionY === 0;
+        this.#bounceCurrentTranslateX === 0 &&
+        this.#bounceCurrentTranslateY === 0;
 
       if (nothing) return;
 
@@ -1362,9 +1343,9 @@ class MomentumScroller {
       this.#bounceTimeAtMaximumDisplacment = 1 / this.#bounceDamping;
 
       this.#bounceFallingOnlyX =
-        initialVelocityX === 0 && currentPositionX !== 0;
+        initialVelocityX === 0 && this.#bounceCurrentTranslateX !== 0;
       this.#bounceFallingOnlyY =
-        initialVelocityY === 0 && currentPositionY !== 0;
+        initialVelocityY === 0 && this.#bounceCurrentTranslateY !== 0;
 
       const getInitialVelocity = (currentPosition) =>
         currentPosition /
@@ -1376,7 +1357,7 @@ class MomentumScroller {
 
       if (!this.#bounceBouncingX) {
         if (this.#bounceFallingOnlyX) {
-          initialVelocityX = getInitialVelocity(currentPositionX);
+          initialVelocityX = getInitialVelocity(this.#bounceCurrentTranslateX);
           this.#bounceInitialVelocityX = initialVelocityX / Math.E;
           this.#bounceInitialPositionX =
             this.#bounceInitialVelocityX * this.#bounceTimeAtMaximumDisplacment;
@@ -1389,7 +1370,7 @@ class MomentumScroller {
 
       if (!this.#bounceBouncingY) {
         if (this.#bounceFallingOnlyY) {
-          initialVelocityY = getInitialVelocity(currentPositionY);
+          initialVelocityY = getInitialVelocity(this.#bounceCurrentTranslateY);
           this.#bounceInitialVelocityY = initialVelocityY / Math.E;
           this.#bounceInitialPositionY =
             this.#bounceInitialVelocityY * this.#bounceTimeAtMaximumDisplacment;
@@ -1445,12 +1426,12 @@ class MomentumScroller {
       (initialPosition + initialVelocity * elapsedTime) /
       Math.pow(Math.E, this.#bounceDamping * elapsedTime);
 
-    const translateX = getTranslate(
+    this.#bounceCurrentTranslateX = getTranslate(
       this.#bounceInitialPositionX,
       this.#bounceInitialVelocityX,
       this.#bounceElapsedTimeX || 0
     );
-    const translateY = getTranslate(
+    this.#bounceCurrentTranslateY = getTranslate(
       this.#bounceInitialPositionY,
       this.#bounceInitialVelocityY,
       this.#bounceElapsedTimeY || 0
@@ -1458,7 +1439,9 @@ class MomentumScroller {
 
     this.#scrollContainer.style.setProperty(
       "transform",
-      `translateX(${translateX}px) translateY(${translateY}px)`
+      `translateX(${this.#bounceCurrentTranslateX}px) translateY(${
+        this.#bounceCurrentTranslateY
+      }px)`
     );
 
     const getIsAtEquilibrium = (scrolling, elapsedTime, translate) =>
@@ -1470,12 +1453,12 @@ class MomentumScroller {
     const xIsAtEquilibrium = getIsAtEquilibrium(
       this.#bounceBouncingX,
       this.#bounceElapsedTimeX,
-      translateX
+      this.#bounceCurrentTranslateX
     );
     const yIsAtEquilibrium = getIsAtEquilibrium(
       this.#bounceBouncingY,
       this.#bounceElapsedTimeY,
-      translateY
+      this.#bounceCurrentTranslateY
     );
 
     if (!xIsAtEquilibrium || !yIsAtEquilibrium) {
@@ -1485,9 +1468,13 @@ class MomentumScroller {
         });
       });
     } else if (xIsAtEquilibrium && yIsAtEquilibrium) {
+      this.#bounceCurrentTranslateX = 0;
+      this.#bounceCurrentTranslateY = 0;
       this.#scrollContainer.style.setProperty(
         "transform",
-        "translateX(0) translateY(0)"
+        `translateX(${this.#bounceCurrentTranslateX}) translateY(${
+          this.#bounceCurrentTranslateY
+        })`
       );
 
       return this.#stopBounce();
