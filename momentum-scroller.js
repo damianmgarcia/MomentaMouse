@@ -589,6 +589,16 @@ class MomentumScroller {
       allowedTypes: ["boolean"],
     });
 
+    if (allowCursorSwitching && this.#active) {
+      if (this.#pointerIsDown) {
+        this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
+      } else if (!this.#pointerIsDown) {
+        this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
+      }
+    } else if (!allowCursorSwitching) {
+      this.#scrollContainer.style.removeProperty("cursor");
+    }
+
     this.#allowCursorSwitching = allowCursorSwitching;
     return this;
   }
