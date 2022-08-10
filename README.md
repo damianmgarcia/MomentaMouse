@@ -51,7 +51,8 @@ If a method has parameters, they are listed in order below the method descriptio
   - _Options Object:_
     - _rootSelector_ — _":root"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [CSS selector](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that will be used as the starting point in the process of automatically creating MomentumScrollers. The _rootSelector_ itself is included in the process. Ancestors of the _rootSelector_ will not be included.
     - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of MomentumScroller instances after creation. If set to true, instances will be activated after they are created. If set to false, instances will not be activated after they are created.
-    - _createScrollerFromBody_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines if MomentumScroller makes an exception on how it handles the [\<body\>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/body) element during the scroller creation process. This setting is only applicable when the _rootSelector_ is set to ":root" or an equivalent selector for the document root, and the document root has scrollable area. If set to true and applicable, the \<body\> element will gain MomentumScroller functionality. This process may not be desirable in some cases since it applies custom CSS declarations to the \<html\> and \<body\> elements. If set to false, the \<body\> element will only gain MomentumScroller functionality if it fulfills the normal criteria for scrollability.<br><br>
+    - _createScrollerFromBody_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines if _autoCreateScrollers_ makes an exception for the [\<body\>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/body) element during the scroller creation process. This setting is only applicable when the _rootSelector_ is set to ":root" or an equivalent selector for the document root, and the document root has scrollable area. If set to true and applicable, the \<body\> element will gain MomentumScroller functionality. This process may not be desirable in some cases since it applies custom CSS declarations to the \<html\> and \<body\> elements. If set to false, the \<body\> element will only gain MomentumScroller functionality if it fulfills the normal criteria for scrollability.
+    - _considerOverflowHiddenAxesNonScrollable_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines how _autoCreateScrollers_ handles elements with hidden [overflows](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow). If set to true, the horizontal axis of an element will be considered non-scrollable by the MomentumScroller instance if [overflow-x](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x) is set to hidden, and the vertical axis of an element will be considered non-scrollable by the MomentumScroller instance if [overflow-y](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y) is set to hidden. If set to false, the horizontal axis of an element will be considered scrollable by the MomentumScroller instance as long as there is scrollable overflow, and the vertical axis of an element will be considered scrollable by the MomentumScroller instance as long as there is scrollable overflow.<br><br>
 - **createScroller** — Creates a MomentumScroller. It returns a MomentumScroller instance.
   - _scrollContainer_ — The [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) that should gain MomentumScroller functionality.
   - _Options Object:_
@@ -137,7 +138,7 @@ If an event includes custom properties in the [CustomEvent details object](https
 
 ### **Instance** Events:
 
-- **momentumScrollerActivate** — Dispatches when a momentum scroller is activated
+- **momentumScrollerActivate** — Dispatches when a MomentumScroller instance is activated
   - _scrollContainer_ — The MomentumScroller instance's scroll container
   - _initialVelocityX_ — The initial pointer velocity on the x axis
   - _initialVelocityY_ — The initial pointer velocity on the y axis
@@ -147,7 +148,11 @@ If an event includes custom properties in the [CustomEvent details object](https
   - _distance_ — The distance scrolled after the pointerup event
   - _elapsedTime_ — The elapsed time of the scroll
   - _interruptedBy_ — The cause of a scroll's interruption if it was interrupted; Otherwise, null<br><br>
-- **momentumScrollerDeactivate** — Dispatches when a momentum scroller is deactivated
+- **momentumScrollerDeactivate** — Dispatches when a MomentumScroller instance is deactivated
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerPointerHandlingStart** — Dispatches when a MomentumScroller instance gets control of the pointer
+  - Same as momentumScrollerActivate<br><br>
+- **momentumScrollerPointerHandlingStop** — Dispatches when a MomentumScroller instance loses control of the pointer
   - Same as momentumScrollerActivate<br><br>
 - **momentumScrollerScrollStart** — Dispatches at the beginning of a momentum scroll
   - Same as momentumScrollerActivate<br><br>
