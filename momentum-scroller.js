@@ -14,7 +14,7 @@ class MomentumScroller {
   static autoCreateScrollers({
     rootSelector = ":root",
     activateImmediately = true,
-    convertBodyToScroller = true,
+    coerceBodyToScroller = true,
     considerOverflowHiddenAxesNonScrollable = true,
   } = {}) {
     validateArgument("rootSelector", rootSelector, {
@@ -24,7 +24,7 @@ class MomentumScroller {
       allowedValues: [true],
       customErrorMessage: "rootSelector does not exist",
     });
-    validateArgument("convertBodyToScroller", convertBodyToScroller, {
+    validateArgument("coerceBodyToScroller", coerceBodyToScroller, {
       allowedTypes: ["boolean"],
     });
 
@@ -48,7 +48,7 @@ class MomentumScroller {
         if (element !== documentRoot)
           return this.createScroller(element, { activateImmediately });
 
-        if (!convertBodyToScroller) return;
+        if (!coerceBodyToScroller) return;
 
         const root = document.querySelector(":root");
         root.style.setProperty("overflow", "hidden");
