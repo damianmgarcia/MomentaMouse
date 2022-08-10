@@ -15,6 +15,7 @@ class MomentumScroller {
     rootSelector = ":root",
     activateImmediately = true,
     convertBodyToScroller = true,
+    considerOverflowHiddenAxesNonScrollable = true,
   } = {}) {
     validateArgument("rootSelector", rootSelector, {
       allowedTypes: ["string"],
@@ -38,7 +39,9 @@ class MomentumScroller {
         if (scrollerAlreadyExists) return;
 
         const { xAxisIsScrollable, yAxisIsScrollable } =
-          ScrollContainerTools.getScrollableAxes(element);
+          ScrollContainerTools.getScrollableAxes(element, {
+            considerOverflowHiddenAxesNonScrollable,
+          });
 
         if (!xAxisIsScrollable && !yAxisIsScrollable) return;
 
@@ -49,11 +52,13 @@ class MomentumScroller {
 
         const root = document.querySelector(":root");
         root.style.setProperty("overflow", "hidden");
+
         const body = document.querySelector("body");
         body.style.setProperty("overflow", "auto");
         body.style.setProperty("margin", "0");
         if (xAxisIsScrollable) body.style.setProperty("width", "100vw");
         if (yAxisIsScrollable) body.style.setProperty("height", "100vh");
+
         this.createScroller(body, { activateImmediately });
       });
 
@@ -252,7 +257,7 @@ class MomentumScroller {
         if (isScrollerNonMomentum) {
           const { xAxisIsScrollable, yAxisIsScrollable } =
             ScrollContainerTools.getScrollableAxes(eventTarget, {
-              ignoreElementsWithOverflowHidden: false,
+              considerOverflowHiddenAxesNonScrollable: false,
             });
 
           const scrollableAxes =
@@ -510,9 +515,22 @@ class MomentumScroller {
         customErrorMessage:
           "This momentumScrollerRoute event is invalid because it was not dispatched by the MomentumScroller module",
       });
+
       const { routedEvent, routeTarget } = event.detail;
-      if (this.#scrollContainer === routeTarget)
-        this.#pointerDownHandler(routedEvent);
+      if (routeTarget === this.#scrollContainer) {
+        if (!this.#isCurrentlyHandlingPointer)
+          this.#pointerDownHandler(routedEvent);
+      } else if (routeTarget !== this.#scrollContainer) {
+        if (!this.#isCurrentlyHandlingPointer) {
+          if (this.#scrollResolve)
+            this.#stopScroll({
+              interruptedBy:
+                "MomentumScroller routed to a different EventTarget",
+            });
+        } else if (this.#isCurrentlyHandlingPointer) {
+          this.#undoPointerDownChanges();
+        }
+      }
     });
 
     this.#scrollContainer.addEventListener("smoothScrollerScrollStart", () => {
@@ -563,7 +581,11 @@ class MomentumScroller {
         "grabCursor must be a String and should be appropriate for the CSS Cursor property (https://developer.mozilla.org/en-US/docs/Web/CSS/cursor)",
     });
 
-    if (this.#allowCursorSwitching && !this.#pointerIsDown && this.#active)
+    if (
+      this.#allowCursorSwitching &&
+      !this.#isCurrentlyHandlingPointer &&
+      this.#active
+    )
       this.#scrollContainer.style.setProperty("cursor", grabCursor);
 
     this.#grabCursor = grabCursor;
@@ -577,7 +599,11 @@ class MomentumScroller {
         "grabbingCursor must be a String and should be appropriate for the CSS Cursor property (https://developer.mozilla.org/en-US/docs/Web/CSS/cursor)",
     });
 
-    if (this.#allowCursorSwitching && this.#pointerIsDown && this.#active)
+    if (
+      this.#allowCursorSwitching &&
+      this.#isCurrentlyHandlingPointer &&
+      this.#active
+    )
       this.#scrollContainer.style.setProperty("cursor", grabbingCursor);
 
     this.#grabbingCursor = grabbingCursor;
@@ -590,9 +616,9 @@ class MomentumScroller {
     });
 
     if (allowCursorSwitching && this.#active) {
-      if (this.#pointerIsDown) {
+      if (this.#isCurrentlyHandlingPointer) {
         this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
-      } else if (!this.#pointerIsDown) {
+      } else if (!this.#isCurrentlyHandlingPointer) {
         this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
       }
     } else if (!allowCursorSwitching) {
@@ -608,6 +634,12 @@ class MomentumScroller {
       allowedTypes: ["boolean"],
     });
 
+    if (!allowHorizontalScrolling) {
+      this.#scrollContainer.style.setProperty("overflow-x", "hidden");
+    } else if (allowHorizontalScrolling) {
+      this.#scrollContainer.style.setProperty("overflow-x", "auto");
+    }
+
     this.#allowHorizontalScrolling = allowHorizontalScrolling;
     return this;
   }
@@ -616,6 +648,12 @@ class MomentumScroller {
     validateArgument("allowVerticalScrolling", allowVerticalScrolling, {
       allowedTypes: ["boolean"],
     });
+
+    if (!allowVerticalScrolling) {
+      this.#scrollContainer.style.setProperty("overflow-y", "hidden");
+    } else if (allowVerticalScrolling) {
+      this.#scrollContainer.style.setProperty("overflow-y", "auto");
+    }
 
     this.#allowVerticalScrolling = allowVerticalScrolling;
     return this;
@@ -677,15 +715,15 @@ class MomentumScroller {
     }
   }
 
-  #xAxisIsScrollable;
-  #yAxisIsScrollable;
-  #scrollableAxes;
-  #pointerMoveUpCancelAbortController = new AbortController();
-  #pointerMoveLog = [];
+  #isCurrentlyHandlingPointer;
   #pointerId;
-  #pointerIsDown;
+  #pointerMoveLog = [];
+  #pointerMoveUpCancelAbortController = new AbortController();
+  #scrollableAxes;
   #xAlreadyBounced;
+  #xAxisIsScrollable;
   #yAlreadyBounced;
+  #yAxisIsScrollable;
 
   #getUpdatedScrollableAxes() {
     const { xAxisIsScrollable, yAxisIsScrollable } =
@@ -710,7 +748,15 @@ class MomentumScroller {
   #pointerDownHandler(event) {
     if (!this.#active) return;
 
-    this.#pointerIsDown = true;
+    this.#scrollContainer.dispatchEvent(
+      new CustomEvent("momentumScrollerPointerHandlingStart", {
+        bubbles: true,
+        cancelable: true,
+        detail: this.#getScrollEventData(),
+      })
+    );
+
+    this.#isCurrentlyHandlingPointer = true;
     this.#pointerId = event.pointerId;
     this.#scrollContainer.setPointerCapture(event.pointerId);
 
@@ -739,22 +785,6 @@ class MomentumScroller {
     );
 
     this.#pointerMoveUpCancelAbortController = new AbortController();
-
-    this.#scrollContainer.addEventListener(
-      "momentumScrollerRoute",
-      (event) => {
-        const key = event.detail.key;
-        validateArgument("key", key, {
-          allowedValues: [momentumScrollerKey],
-          customErrorMessage:
-            "This momentumScrollerRoute event is invalid because it was not dispatched by the MomentumScroller module",
-        });
-        const { routeTarget } = event.detail;
-        if (this.#scrollContainer !== routeTarget)
-          this.#undoPointerDownChanges();
-      },
-      { signal: this.#pointerMoveUpCancelAbortController.signal }
-    );
 
     ["contextmenu", "keydown"].forEach((eventType) =>
       document.addEventListener(
@@ -859,12 +889,20 @@ class MomentumScroller {
   }
 
   #undoPointerDownChanges() {
+    this.#scrollContainer.dispatchEvent(
+      new CustomEvent("momentumScrollerPointerHandlingStop", {
+        bubbles: true,
+        cancelable: true,
+        detail: this.#getScrollEventData(),
+      })
+    );
+
     this.#pointerMoveUpCancelAbortController.abort();
 
     if (this.#pointerId)
       this.#scrollContainer.releasePointerCapture(this.#pointerId);
 
-    this.#pointerIsDown = false;
+    this.#isCurrentlyHandlingPointer = false;
     this.#pointerId = null;
 
     if (this.#allowCursorSwitching)
