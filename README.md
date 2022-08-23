@@ -67,6 +67,7 @@ If a method has parameters, they are listed in order below the method descriptio
     "input[type=tel]",
     "input[type=text]",
     "input[type=url]",
+    "select",
     "textarea",
     ]_ — An [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of selectors that should be ignored by MomentumScroller.
   - _Options Object:_

@@ -149,6 +149,7 @@ class MomentumScroller {
     "input[type=tel]",
     "input[type=text]",
     "input[type=url]",
+    "select",
     "textarea",
   ];
 
