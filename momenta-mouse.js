@@ -1,14 +1,14 @@
 import {
   getDeviceHeuristics,
-  isPrimaryInput,
+  InputTools,
   ScrollContainerTools,
   validateArgument,
 } from "https://damianmgarcia.com/scripts/modules/utilities.js";
 
 const deviceHeuristics = getDeviceHeuristics();
-const momentumScrollerKey = Symbol("momentumScrollerKey");
+const momentaMouseScrollerKey = Symbol("momentaMouseScrollerKey");
 
-class MomentumScroller {
+class MomentaMouse {
   static #scrollerMap = new Map();
 
   static autoCreateScrollers({
@@ -71,7 +71,7 @@ class MomentumScroller {
   static createScroller(scrollContainer, { activateImmediately = true } = {}) {
     if (deviceHeuristics.isTouchScreen)
       throw new Error(
-        "MomentumScroller instantiation blocked because this is a touch-screen device. MomentumScroller is intended to be used by mouse-users on non-touch-screen devices."
+        "MomentaMouse instantiation blocked because this is a touch-screen device. MomentaMouse is intended to be used by mouse-users on non-touch-screen devices."
       );
 
     validateArgument("scrollContainer", scrollContainer, {
@@ -91,11 +91,38 @@ class MomentumScroller {
       if (rootScrollerAlreadyExists) return;
     }
 
-    if (!this.#pointerDownRouterActivated) {
+    if (!this.#initializationComplete) {
       document.addEventListener("pointerdown", (event) =>
         this.#pointerDownRouter(event)
       );
-      this.#pointerDownRouterActivated = true;
+
+      document.addEventListener("keydown", (event) => {
+        if (!this.#allowQuickToggleKey) return;
+
+        if (event.key === "Control")
+          this.getAllScrollers().forEach((scroller) =>
+            scroller.deactivate({ quickToggleDeactivation: true })
+          );
+      });
+
+      document.addEventListener("keyup", (event) => {
+        if (!this.#allowQuickToggleKey) return;
+
+        if (event.key === "Control")
+          this.getAllScrollers().forEach((scroller) =>
+            scroller.activate({ quickToggleActivation: true })
+          );
+      });
+
+      addEventListener("blur", () => {
+        if (!this.#allowQuickToggleKey) return;
+
+        this.getAllScrollers().forEach((scroller) =>
+          scroller.activate({ quickToggleActivation: true })
+        );
+      });
+
+      this.#initializationComplete = true;
     }
 
     const createCounterBounceMechanismForRoot = () => {
@@ -114,14 +141,14 @@ class MomentumScroller {
         "style",
         `height: 1px; width: 1px; transform: translate3d(0px, 0px, 0px); float: ${counterBouncerFloatDirection};`
       );
-      counterBouncer.classList.add("momentum-scroller-counter-bouncer");
+      counterBouncer.classList.add("momenta-mouse-counter-bouncer");
       document.body.insertAdjacentElement("beforeend", counterBouncer);
     };
 
     if (scrollContainer === document.documentElement)
       createCounterBounceMechanismForRoot();
 
-    const scroller = new this(scrollContainer, momentumScrollerKey);
+    const scroller = new this(scrollContainer, momentaMouseScrollerKey);
 
     if (activateImmediately) scroller.activate();
 
@@ -138,7 +165,18 @@ class MomentumScroller {
     return Array.from(this.#scrollerMap.values());
   }
 
-  static #pointerDownRouterActivated = false;
+  static #initializationComplete = false;
+
+  static #allowQuickToggleKey = true;
+
+  static setAllowQuickToggleKey(allowQuickToggleKey = true) {
+    validateArgument("allowQuickToggleKey", allowQuickToggleKey, {
+      allowedTypes: ["boolean"],
+    });
+
+    this.#allowQuickToggleKey = allowQuickToggleKey;
+    return this;
+  }
 
   static #selectorsOfElementsScrollerShouldIgnore = [
     "input[type=email]",
@@ -240,7 +278,7 @@ class MomentumScroller {
   }
 
   static async #pointerDownRouter(event) {
-    const inputButtonIsPrimary = isPrimaryInput(event);
+    const inputButtonIsPrimary = InputTools.isPrimaryInput(event);
     if (!inputButtonIsPrimary) return;
 
     const targetOrAncestorIsOnIgnoreList =
@@ -251,13 +289,13 @@ class MomentumScroller {
     if (targetOrAncestorIsOnIgnoreList) return;
 
     const eventTargets = event.composedPath();
-    const topMomentumScrollerEventTarget = eventTargets.find(
+    const topMomentaMouseScrollerEventTarget = eventTargets.find(
       (eventTarget) =>
         eventTarget instanceof Element &&
-        eventTarget.matches(".momentum-scroller")
+        eventTarget.matches(".momenta-mouse-scroller")
     );
 
-    if (!topMomentumScrollerEventTarget) return;
+    if (!topMomentaMouseScrollerEventTarget) return;
 
     const relevantEventTargetsAndProperties = eventTargets
       .map((eventTarget) => {
@@ -273,7 +311,9 @@ class MomentumScroller {
         if (isNonScroller)
           return compileEventTargetProperties({ isNonScroller });
 
-        const isScrollerMomentum = eventTarget.matches(".momentum-scroller");
+        const isScrollerMomentum = eventTarget.matches(
+          ".momenta-mouse-scroller"
+        );
         if (isScrollerMomentum) {
           const { scrollableAxes } =
             this.getScroller(eventTarget).getScrollerData();
@@ -315,19 +355,19 @@ class MomentumScroller {
 
     const topEventTarget = eventTargets[0];
 
-    const dispatchMomentumScrollerPointerRouteEvent = (detail = {}) =>
+    const dispatchMomentaMouseScrollerPointerRouteEvent = (detail = {}) =>
       topEventTarget.dispatchEvent(
-        new CustomEvent("momentumScrollerPointerRoute", {
+        new CustomEvent("momentaMouseScrollerPointerRoute", {
           bubbles: true,
           cancelable: true,
-          detail: Object.assign(detail, { key: momentumScrollerKey }),
+          detail: Object.assign(detail, { key: momentaMouseScrollerKey }),
         })
       );
 
     if (!moreThanOneRelevantEventTarget)
-      return dispatchMomentumScrollerPointerRouteEvent({
+      return dispatchMomentaMouseScrollerPointerRouteEvent({
         pointerEvent: event,
-        routeTo: topMomentumScrollerEventTarget,
+        routeTo: topMomentaMouseScrollerEventTarget,
         routeFrom: null,
       });
 
@@ -343,38 +383,75 @@ class MomentumScroller {
         document.addEventListener(
           "pointermove",
           (event) => {
-            const getPointerCrossedThreshold = (
+            const getPointerDistanceFromOrigin = (
               originalPosition,
               newPosition
-            ) => Math.abs(originalPosition - newPosition) > threshold;
+            ) => Math.abs(originalPosition - newPosition);
 
-            const pointerCrossedHorizontalThreshold =
-              getPointerCrossedThreshold(pointerStartingPointX, event.screenX);
-            if (pointerCrossedHorizontalThreshold)
-              return abortAndResolve({ event, thresholdCrossed: "horizontal" });
-
-            const pointerCrossedVerticalThreshold = getPointerCrossedThreshold(
+            const pointerDistanceFromOriginX = getPointerDistanceFromOrigin(
+              pointerStartingPointX,
+              event.screenX
+            );
+            const pointerDistanceFromOriginY = getPointerDistanceFromOrigin(
               pointerStartingPointY,
               event.screenY
             );
-            if (pointerCrossedVerticalThreshold)
+
+            if (
+              pointerDistanceFromOriginX > threshold &&
+              pointerDistanceFromOriginX > pointerDistanceFromOriginY
+            ) {
+              return abortAndResolve({ event, thresholdCrossed: "horizontal" });
+            } else if (
+              pointerDistanceFromOriginY > threshold &&
+              pointerDistanceFromOriginY > pointerDistanceFromOriginX
+            ) {
               return abortAndResolve({ event, thresholdCrossed: "vertical" });
+            }
           },
           { signal: thresholdTestAbortController.signal }
         );
 
-        ["pointerup", "pointercancel", "keydown"].forEach((eventType) =>
+        ["pointercancel", "pointerup", "wheel"].forEach((eventType) =>
           document.addEventListener(
             eventType,
             () => abortAndResolve({ thresholdCrossed: null }),
             { signal: thresholdTestAbortController.signal }
           )
         );
+
+        addEventListener(
+          "blur",
+          () => abortAndResolve({ thresholdCrossed: null }),
+          { signal: thresholdTestAbortController.signal }
+        );
+
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            const pressedScrollingKey = InputTools.isKeyThatScrolls(event.key);
+            if (
+              pressedScrollingKey ||
+              (event.key === "Control" && this.#allowQuickToggleKey)
+            )
+              abortAndResolve({ thresholdCrossed: null });
+          },
+          { signal: thresholdTestAbortController.signal }
+        );
+
+        document.addEventListener(
+          "mousedown",
+          (event) => {
+            const wheelButtonClicked = event.button === 1;
+            if (wheelButtonClicked) abortAndResolve({ thresholdCrossed: null });
+          },
+          { signal: thresholdTestAbortController.signal }
+        );
       });
 
     const findCompatibleScroller = ({
       scrollersToIgnore = [],
-      allowNonMomentumScrollers = false,
+      allowNonMomentaMouseScrollers = false,
       allowedScrollableAxes = [],
     }) =>
       relevantEventTargetsAndProperties.find(
@@ -384,7 +461,7 @@ class MomentumScroller {
           ) &&
           (relevantEventTargetProperties.isScrollerMomentum ||
             (relevantEventTargetProperties.isScrollerNonMomentum &&
-              allowNonMomentumScrollers)) &&
+              allowNonMomentaMouseScrollers)) &&
           allowedScrollableAxes.includes(
             relevantEventTargetProperties.scrollableAxes
           )
@@ -393,7 +470,7 @@ class MomentumScroller {
     const topRelevantEventTargetProperties =
       relevantEventTargetsAndProperties[0];
 
-    dispatchMomentumScrollerPointerRouteEvent({
+    dispatchMomentaMouseScrollerPointerRouteEvent({
       pointerEvent: event,
       routeTo: topRelevantEventTargetProperties.eventTarget,
       routeFrom: null,
@@ -415,7 +492,7 @@ class MomentumScroller {
 
       const nextCompatibleScroller = findCompatibleScroller({
         scrollersToIgnore: [topRelevantEventTargetProperties.eventTarget],
-        allowNonMomentumScrollers:
+        allowNonMomentaMouseScrollers:
           topRelevantEventTargetProperties.isScrollerMomentum ? true : false,
         allowedScrollableAxes: scrollableAxesThatHaveMissingAxis,
       });
@@ -439,7 +516,7 @@ class MomentumScroller {
       )
         return;
 
-      dispatchMomentumScrollerPointerRouteEvent({
+      dispatchMomentaMouseScrollerPointerRouteEvent({
         pointerEvent: thresholdTestResults.event,
         routeTo: nextCompatibleScroller.eventTarget,
         routeFrom: topRelevantEventTargetProperties.eventTarget,
@@ -465,7 +542,7 @@ class MomentumScroller {
       if (noThresholdsWereCrossed) return;
 
       const routeToScroller = (routeTo) =>
-        dispatchMomentumScrollerPointerRouteEvent({
+        dispatchMomentaMouseScrollerPointerRouteEvent({
           pointerEvent: thresholdTestResults.event,
           routeTo,
           routeFrom: topRelevantEventTargetProperties.eventTarget,
@@ -511,45 +588,48 @@ class MomentumScroller {
   #borderBouncinessLevel = "medium";
   #grabCursor = "grab";
   #grabbingCursor = "grabbing";
-  #allowCursorSwitching = true;
+  #allowReactiveCursor = true;
   #allowHorizontalScrolling = true;
   #allowVerticalScrolling = true;
   #decelerationLevelToQuantityMap = new Map([
     ["none", 0],
-    ["minimum", 0.00004],
-    ["low", 0.0002],
-    ["medium", 0.001],
-    ["high", 0.005],
-    ["maximum", 0.025],
+    ["minimum", 0.00004 * 5 ** 0],
+    ["low", 0.00004 * 5 ** 1],
+    ["medium", 0.00004 * 5 ** 2],
+    ["high", 0.00004 * 5 ** 3],
+    ["maximum", 0.00004 * 5 ** 4],
   ]);
   #borderBouncinessLevelToQuantityMap = new Map([
     ["none", Infinity],
-    ["minimum", 0.02],
-    ["low", 0.01],
-    ["medium", 0.005],
-    ["high", 0.00375],
-    ["maximum", 0.0025],
+    ["minimum", 0.02 / 1.5 ** 0],
+    ["low", 0.02 / 1.5 ** 1],
+    ["medium", 0.02 / 1.5 ** 2],
+    ["high", 0.02 / 1.5 ** 3],
+    ["maximum", 0.02 / 1.5 ** 4],
   ]);
 
   constructor(scrollContainer, key) {
     validateArgument("key", key, {
-      allowedValues: [momentumScrollerKey],
+      allowedValues: [momentaMouseScrollerKey],
       customErrorMessage:
         "Please use the autoCreateScrollers static method or the createScroller static method to create scrollers",
     });
 
     this.#scrollContainer = scrollContainer;
 
-    this.#scrollContainer.classList.add("momentum-scroller");
+    this.#scrollContainer.classList.add("momenta-mouse-scroller");
+    this.#scrollContainer.setAttribute("tabindex", "0");
 
     this.#scrollContainer.addEventListener(
-      "momentumScrollerPointerRoute",
+      "momentaMouseScrollerPointerRoute",
       (event) => {
+        if (!this.#active) return;
+
         const key = event.detail.key;
         validateArgument("key", key, {
-          allowedValues: [momentumScrollerKey],
+          allowedValues: [momentaMouseScrollerKey],
           customErrorMessage:
-            "This momentumScrollerRoute event is invalid because it was not dispatched by the MomentumScroller module",
+            "This momentaMouseScrollerRoute event is invalid because it was not dispatched by the MomentaMouse module",
         });
 
         const { pointerEvent, routeTo, routeFrom } = event.detail;
@@ -563,20 +643,70 @@ class MomentumScroller {
 
         if (this.#scrollResolve)
           this.#stopScroll({
-            interruptedBy: "MomentumScroller routed to a different EventTarget",
+            interruptedBy: "MomentaMouse routed to a different EventTarget",
           });
       }
     );
 
+    const stopHandlingOrScrollingIfNeeded = () => {
+      if (this.#scrollResolve) {
+        this.#stopScroll({
+          interruptedBy: "Other scroll",
+        });
+      } else if (this.#isCurrentlyHandlingPointer) {
+        this.#undoPointerDownChanges();
+      }
+    };
+
+    this.#scrollContainer.addEventListener("wheel", () => {
+      if (!this.#active) return;
+
+      stopHandlingOrScrollingIfNeeded();
+    });
+
+    this.#scrollContainer.addEventListener("keydown", (event) => {
+      if (!this.#active) return;
+
+      const pressedScrollingKey = InputTools.isKeyThatScrolls(event.key);
+      if (!pressedScrollingKey) return;
+
+      stopHandlingOrScrollingIfNeeded();
+    });
+
+    this.#scrollContainer.addEventListener("mousedown", (event) => {
+      if (!this.#active) return;
+
+      const wheelButtonClicked = event.button === 1;
+      if (!wheelButtonClicked) return;
+
+      stopHandlingOrScrollingIfNeeded();
+    });
+
+    this.#scrollContainer.addEventListener("contextmenu", () => {
+      if (!this.#active) return;
+
+      if (this.#isCurrentlyHandlingPointer) this.#undoPointerDownChanges();
+    });
+
+    addEventListener("blur", () => {
+      if (!this.#active) return;
+
+      if (this.#isCurrentlyHandlingPointer) this.#undoPointerDownChanges();
+    });
+
     this.#scrollContainer.addEventListener("smoothScrollerScrollStart", () => {
+      if (!this.#active) return;
+
       if (this.#scrollResolve)
         this.#stopScroll({
-          interruptedBy: "Smooth scroll on same container",
+          interruptedBy: "Other scroll",
         });
     });
 
     this.#scrollContainer.addEventListener("dragstart", (event) => {
-      if (this.#active) event.preventDefault();
+      if (!this.#active) return;
+
+      event.preventDefault();
     });
 
     this.#pageProgression = ScrollContainerTools.getPageProgression(
@@ -589,7 +719,7 @@ class MomentumScroller {
       active: this.#active,
       scrollableAxes: this.#getUpdatedScrollableAxes(),
       scrollContainer: this.#scrollContainer,
-      scrolling: this.#scrolling,
+      scrolling: !!this.#scrollResolve,
     };
   }
 
@@ -621,7 +751,7 @@ class MomentumScroller {
     });
 
     if (
-      this.#allowCursorSwitching &&
+      this.#allowReactiveCursor &&
       !this.#isCurrentlyHandlingPointer &&
       this.#active
     )
@@ -639,7 +769,7 @@ class MomentumScroller {
     });
 
     if (
-      this.#allowCursorSwitching &&
+      this.#allowReactiveCursor &&
       this.#isCurrentlyHandlingPointer &&
       this.#active
     )
@@ -649,22 +779,22 @@ class MomentumScroller {
     return this;
   }
 
-  setAllowCursorSwitching(allowCursorSwitching = true) {
-    validateArgument("allowCursorSwitching", allowCursorSwitching, {
+  setAllowReactiveCursor(allowReactiveCursor = true) {
+    validateArgument("allowReactiveCursor", allowReactiveCursor, {
       allowedTypes: ["boolean"],
     });
 
-    if (allowCursorSwitching && this.#active) {
+    if (allowReactiveCursor && this.#active) {
       if (this.#isCurrentlyHandlingPointer) {
         this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
       } else if (!this.#isCurrentlyHandlingPointer) {
         this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
       }
-    } else if (!allowCursorSwitching) {
+    } else if (!allowReactiveCursor) {
       this.#scrollContainer.style.removeProperty("cursor");
     }
 
-    this.#allowCursorSwitching = allowCursorSwitching;
+    this.#allowReactiveCursor = allowReactiveCursor;
     return this;
   }
 
@@ -688,46 +818,54 @@ class MomentumScroller {
 
   #active = false;
 
-  activate() {
+  activate({ quickToggleActivation = false } = {}) {
     if (this.#active) return;
 
-    if (this.#allowCursorSwitching)
+    if (quickToggleActivation && !this.#quickToggleDeactivation) return;
+
+    this.#quickToggleDeactivation = false;
+
+    if (this.#allowReactiveCursor)
       this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
     this.#scrollContainer.style.setProperty("-webkit-user-select", "none");
     this.#scrollContainer.style.setProperty("user-select", "none");
     this.#active = true;
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerActivate", {
+      new CustomEvent("momentaMouseScrollerActivate", {
         bubbles: true,
         cancelable: true,
-        detail: this.#getScrollEventData(),
+        detail: this.#getScrollEventData({ quickToggleActivation }),
       })
     );
 
     return this;
   }
 
-  deactivate() {
+  #quickToggleDeactivation = false;
+
+  deactivate({ quickToggleDeactivation = false } = {}) {
     if (!this.#active) return;
+
+    if (quickToggleDeactivation) this.#quickToggleDeactivation = true;
 
     if (this.#scrollResolve)
       this.#stopScroll({
-        interruptedBy: "Momentum scroller deactivation",
+        interruptedBy: "MomentaMouse scroller deactivation",
       });
 
     this.#undoPointerDownChanges();
-    if (this.#allowCursorSwitching)
+    if (this.#allowReactiveCursor)
       this.#scrollContainer.style.removeProperty("cursor");
     this.#scrollContainer.style.removeProperty("-webkit-user-select");
     this.#scrollContainer.style.removeProperty("user-select");
     this.#active = false;
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerDeactivate", {
+      new CustomEvent("momentaMouseScrollerDeactivate", {
         bubbles: true,
         cancelable: true,
-        detail: this.#getScrollEventData(),
+        detail: this.#getScrollEventData({ quickToggleDeactivation }),
       })
     );
 
@@ -776,7 +914,7 @@ class MomentumScroller {
     if (!this.#active) return;
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerPointerHandlingStart", {
+      new CustomEvent("momentaMouseScrollerPointerHandlingStart", {
         bubbles: true,
         cancelable: true,
         detail: this.#getScrollEventData(),
@@ -797,7 +935,7 @@ class MomentumScroller {
         interruptedBy: "Pointer down on scroll container",
       });
 
-    if (this.#allowCursorSwitching)
+    if (this.#allowReactiveCursor)
       this.#scrollContainer.style.setProperty("cursor", this.#grabbingCursor);
 
     let movementX = 0;
@@ -812,14 +950,6 @@ class MomentumScroller {
     );
 
     this.#pointerMoveUpCancelAbortController = new AbortController();
-
-    ["contextmenu", "keydown"].forEach((eventType) =>
-      document.addEventListener(
-        eventType,
-        () => this.#undoPointerDownChanges(),
-        { signal: this.#pointerMoveUpCancelAbortController.signal }
-      )
-    );
 
     ["pointerup", "pointercancel"].forEach((eventType) =>
       this.#scrollContainer.addEventListener(
@@ -914,7 +1044,7 @@ class MomentumScroller {
 
   #undoPointerDownChanges({ delayCursorChangeFor } = {}) {
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerPointerHandlingStop", {
+      new CustomEvent("momentaMouseScrollerPointerHandlingStop", {
         bubbles: true,
         cancelable: true,
         detail: this.#getScrollEventData(),
@@ -929,13 +1059,13 @@ class MomentumScroller {
     this.#isCurrentlyHandlingPointer = false;
     this.#pointerId = null;
 
-    if (this.#allowCursorSwitching) {
+    if (this.#allowReactiveCursor) {
       if (!delayCursorChangeFor) {
         this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
       } else if (delayCursorChangeFor) {
         const cursorSwitchingAbortController = new AbortController();
         delayCursorChangeFor.addEventListener(
-          "momentumScrollerPointerHandlingStop",
+          "momentaMouseScrollerPointerHandlingStop",
           (event) => {
             if (event.detail.scrollContainer !== delayCursorChangeFor) return;
             this.#scrollContainer.style.setProperty("cursor", this.#grabCursor);
@@ -1192,12 +1322,11 @@ class MomentumScroller {
 
     if (!this.#scrollStartTime) {
       this.#scrollStartTime = currentTime;
-      this.#scrolling = true;
       this.#scrollStartingPointX = this.#scrollContainer.scrollLeft;
       this.#scrollStartingPointY = this.#scrollContainer.scrollTop;
 
       this.#scrollContainer.dispatchEvent(
-        new CustomEvent("momentumScrollerScrollStart", {
+        new CustomEvent("momentaMouseScrollerScrollStart", {
           bubbles: true,
           cancelable: true,
           detail: this.#getScrollEventData(),
@@ -1250,7 +1379,7 @@ class MomentumScroller {
     this.#scrollEndingPointY = this.#scrollContainer.scrollTop;
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerScroll", {
+      new CustomEvent("momentaMouseScrollerScroll", {
         bubbles: true,
         cancelable: true,
         detail: this.#getScrollEventData(),
@@ -1337,7 +1466,7 @@ class MomentumScroller {
     if (this.#scrollResolve) this.#scrollResolve(eventData);
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerScrollStop", {
+      new CustomEvent("momentaMouseScrollerScrollStop", {
         bubbles: true,
         cancelable: true,
         detail: eventData,
@@ -1346,7 +1475,6 @@ class MomentumScroller {
 
     this.#previousScrollStopTimestamp = Date.now();
     cancelAnimationFrame(this.#scrollRafId);
-    this.#scrolling = false;
     this.#scrollDeceleration = NaN;
     this.#scrollDuration = NaN;
     this.#scrollElapsedTime = NaN;
@@ -1412,7 +1540,7 @@ class MomentumScroller {
 
     if (this.#scrollContainer === document.documentElement) {
       this.#scrollContainer
-        .querySelector(".momentum-scroller-counter-bouncer")
+        .querySelector(".momenta-mouse-counter-bouncer")
         .style.setProperty(
           "transform",
           `translate3d(${-1 * this.#bounceCurrentTranslateX}px, ${
@@ -1510,9 +1638,9 @@ class MomentumScroller {
       });
     }
 
-    const dispatchMomentumScrollerBounceEvent = () => {
+    const dispatchMomentaMouseScrollerBounceEvent = () => {
       this.#scrollContainer.dispatchEvent(
-        new CustomEvent("momentumScrollerBounceStart", {
+        new CustomEvent("momentaMouseScrollerBounceStart", {
           bubbles: true,
           cancelable: true,
           detail: this.#getBounceEventData(),
@@ -1522,11 +1650,11 @@ class MomentumScroller {
 
     if (this.#bounceInitialVelocityX && !this.#bounceStartTimeX) {
       this.#bounceStartTimeX = currentTime;
-      dispatchMomentumScrollerBounceEvent();
+      dispatchMomentaMouseScrollerBounceEvent();
     }
     if (this.#bounceInitialVelocityY && !this.#bounceStartTimeY) {
       this.#bounceStartTimeY = currentTime;
-      dispatchMomentumScrollerBounceEvent();
+      dispatchMomentaMouseScrollerBounceEvent();
     }
 
     if (this.#bounceStartTimeX)
@@ -1587,10 +1715,10 @@ class MomentumScroller {
   #stopBounce(extraData = {}) {
     const eventData = this.#getBounceEventData(extraData);
 
-    this.#bounceResolve(eventData);
+    if (this.#bounceResolve) this.#bounceResolve(eventData);
 
     this.#scrollContainer.dispatchEvent(
-      new CustomEvent("momentumScrollerBounceStop", {
+      new CustomEvent("momentaMouseScrollerBounceStop", {
         bubbles: true,
         cancelable: true,
         detail: eventData,
@@ -1631,4 +1759,4 @@ class MomentumScroller {
   }
 }
 
-export { MomentumScroller };
+export { MomentaMouse };
