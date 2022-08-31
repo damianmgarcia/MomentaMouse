@@ -93,7 +93,7 @@ class MomentaMouse {
 
     if (!this.#initializationComplete) {
       document.addEventListener("pointerdown", (event) =>
-        this.#pointerDownRouter(event)
+        this._pointerDownRouter(event)
       );
 
       document.addEventListener("keydown", (event) => {
@@ -277,7 +277,7 @@ class MomentaMouse {
     return this;
   }
 
-  static async #pointerDownRouter(event) {
+  static async _pointerDownRouter(event) {
     const inputButtonIsPrimary = InputTools.isPrimaryInput(event);
     if (!inputButtonIsPrimary) return;
 
