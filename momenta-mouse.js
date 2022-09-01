@@ -1157,7 +1157,6 @@ class MomentaMouse {
     this.#pointerMoveLog = [];
   }
 
-  #scrolling = false;
   #previousScrollDirectionX = NaN;
   #previousScrollDirectionY = NaN;
   #previousScrollDuration = NaN;
