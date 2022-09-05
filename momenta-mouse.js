@@ -10,6 +10,9 @@ const momentaMouseScrollerKey = Symbol("momentaMouseScrollerKey");
 
 class MomentaMouse {
   static #scrollerMap = new Map();
+  static #activeScrollers = new Set();
+  static #inactiveScrollers = new Set();
+  static #scrollerHandlingPointer;
 
   static autoCreateScrollers({
     rootSelector = ":root",
@@ -31,7 +34,7 @@ class MomentaMouse {
         allowedTypes: ["boolean"],
       }
     );
-    this.verifySelectors("selectorsToIgnore", selectorsToIgnore);
+    this.#verifySelectors("selectorsToIgnore", selectorsToIgnore);
 
     document
       .querySelectorAll(`${rootSelector}, ${rootSelector} *`)
@@ -100,7 +103,7 @@ class MomentaMouse {
         if (!this.#allowQuickToggleKey) return;
 
         if (event.key === "Control")
-          this.getAllScrollers().forEach((scroller) =>
+          this.#activeScrollers.forEach((scroller) =>
             scroller.deactivate({ quickToggleDeactivation: true })
           );
       });
@@ -109,18 +112,51 @@ class MomentaMouse {
         if (!this.#allowQuickToggleKey) return;
 
         if (event.key === "Control")
-          this.getAllScrollers().forEach((scroller) =>
+          this.#inactiveScrollers.forEach((scroller) =>
             scroller.activate({ quickToggleActivation: true })
           );
       });
 
       addEventListener("blur", () => {
-        if (!this.#allowQuickToggleKey) return;
+        if (this.#allowQuickToggleKey) {
+          this.#inactiveScrollers.forEach((scroller) =>
+            scroller.activate({ quickToggleActivation: true })
+          );
+        }
 
-        this.getAllScrollers().forEach((scroller) =>
-          scroller.activate({ quickToggleActivation: true })
-        );
+        if (this.#scrollerHandlingPointer)
+          this.#scrollerHandlingPointer.#undoPointerDownChanges();
       });
+
+      document.addEventListener("contextmenu", () => {
+        if (this.#scrollerHandlingPointer)
+          this.#scrollerHandlingPointer.#undoPointerDownChanges();
+      });
+
+      document.addEventListener("momentaMouseScrollerActivate", (event) => {
+        const scroller = this.getScroller(event.detail.scrollContainer);
+        this.#activeScrollers.add(scroller);
+        this.#inactiveScrollers.delete(scroller);
+      });
+
+      document.addEventListener("momentaMouseScrollerDeactivate", (event) => {
+        const scroller = this.getScroller(event.detail.scrollContainer);
+        this.#activeScrollers.delete(scroller);
+        this.#inactiveScrollers.add(scroller);
+      });
+
+      document.addEventListener(
+        "momentaMouseScrollerPointerHandlingStart",
+        (event) => {
+          const scroller = this.getScroller(event.detail.scrollContainer);
+          this.#scrollerHandlingPointer = scroller;
+        }
+      );
+
+      document.addEventListener(
+        "momentaMouseScrollerPointerHandlingStop",
+        () => (this.#scrollerHandlingPointer = null)
+      );
 
       this.#initializationComplete = true;
     }
@@ -150,9 +186,9 @@ class MomentaMouse {
 
     const scroller = new this(scrollContainer, momentaMouseScrollerKey);
 
-    if (activateImmediately) scroller.activate();
-
     this.#scrollerMap.set(scrollContainer, scroller);
+
+    if (activateImmediately) scroller.activate();
 
     return scroller;
   }
@@ -213,7 +249,7 @@ class MomentaMouse {
 
   static #selectorsOfOtherTouchScrollers = [];
 
-  static verifySelectors(selectorsName, selectors) {
+  static #verifySelectors(selectorsName, selectors) {
     validateArgument(selectorsName, selectors, {
       allowedTypes: ["array"],
     });
@@ -233,7 +269,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.verifySelectors("selectorsOfElementsScrollerShouldIgnore", selectors);
+    this.#verifySelectors("selectorsOfElementsScrollerShouldIgnore", selectors);
 
     const currentSelector = this.#selectorsOfElementsScrollerShouldIgnore;
 
@@ -249,7 +285,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.verifySelectors("selectorsOfClickableElements", selectors);
+    this.#verifySelectors("selectorsOfClickableElements", selectors);
 
     const currentSelector = this.#selectorsOfClickableElements;
 
@@ -265,7 +301,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.verifySelectors("selectorsOfOtherTouchScrollers", selectors);
+    this.#verifySelectors("selectorsOfOtherTouchScrollers", selectors);
 
     const currentSelector = this.#selectorsOfOtherTouchScrollers;
 
@@ -531,6 +567,8 @@ class MomentaMouse {
         allowedScrollableAxes: scrollableAxesThatHaveMissingAxis,
       });
 
+      if (!firstCompatibleScroller) return;
+
       const secondCompatibleScroller = findCompatibleScroller({
         scrollersToIgnore: [firstCompatibleScroller.eventTarget],
         allowedScrollableAxes: scrollableAxesThatHaveMissingAxis,
@@ -540,6 +578,29 @@ class MomentaMouse {
 
       const noThresholdsWereCrossed = !thresholdTestResults.thresholdCrossed;
       if (noThresholdsWereCrossed) return;
+
+      // Click preventDefault necessary for Gecko
+      const abortController = new AbortController();
+      ["pointercancel", "pointerup"].forEach((eventType) =>
+        document.addEventListener(
+          eventType,
+          (event) => {
+            const cursorIsOverAnchorElement =
+              document.elementFromPoint(event.clientX, event.clientY) ===
+              topRelevantEventTargetProperties.eventTarget;
+            if (!cursorIsOverAnchorElement) return abortController.abort();
+            document.addEventListener(
+              "click",
+              (event) => {
+                event.preventDefault();
+                abortController.abort();
+              },
+              { signal: abortController.signal }
+            );
+          },
+          { signal: abortController.signal }
+        )
+      );
 
       const routeToScroller = (routeTo) =>
         dispatchMomentaMouseScrollerPointerRouteEvent({
@@ -593,19 +654,19 @@ class MomentaMouse {
   #allowVerticalScrolling = true;
   #decelerationLevelToQuantityMap = new Map([
     ["none", 0],
-    ["minimum", 0.00004 * 5 ** 0],
-    ["low", 0.00004 * 5 ** 1],
-    ["medium", 0.00004 * 5 ** 2],
-    ["high", 0.00004 * 5 ** 3],
-    ["maximum", 0.00004 * 5 ** 4],
+    ["minimum", 0.0005 * (2 ** 0.5) ** 0],
+    ["low", 0.0005 * (2 ** 0.5) ** 1],
+    ["medium", 0.0005 * (2 ** 0.5) ** 2],
+    ["high", 0.0005 * (2 ** 0.5) ** 3],
+    ["maximum", 0.0005 * (2 ** 0.5) ** 4],
   ]);
   #borderBouncinessLevelToQuantityMap = new Map([
     ["none", Infinity],
-    ["minimum", 0.02 / 1.5 ** 0],
-    ["low", 0.02 / 1.5 ** 1],
-    ["medium", 0.02 / 1.5 ** 2],
-    ["high", 0.02 / 1.5 ** 3],
-    ["maximum", 0.02 / 1.5 ** 4],
+    ["minimum", 0.01 / 1.2 ** 0],
+    ["low", 0.01 / 1.2 ** 1],
+    ["medium", 0.01 / 1.2 ** 2],
+    ["high", 0.01 / 1.2 ** 3],
+    ["maximum", 0.01 / 1.2 ** 4],
   ]);
 
   constructor(scrollContainer, key) {
@@ -682,18 +743,6 @@ class MomentaMouse {
       stopHandlingOrScrollingIfNeeded();
     });
 
-    this.#scrollContainer.addEventListener("contextmenu", () => {
-      if (!this.#active) return;
-
-      if (this.#isCurrentlyHandlingPointer) this.#undoPointerDownChanges();
-    });
-
-    addEventListener("blur", () => {
-      if (!this.#active) return;
-
-      if (this.#isCurrentlyHandlingPointer) this.#undoPointerDownChanges();
-    });
-
     this.#scrollContainer.addEventListener("smoothScrollerScrollStart", () => {
       if (!this.#active) return;
 
@@ -717,6 +766,7 @@ class MomentaMouse {
   getScrollerData() {
     return {
       active: this.#active,
+      isCurrentlyHandlingPointer: this.#isCurrentlyHandlingPointer,
       scrollableAxes: this.#getUpdatedScrollableAxes(),
       scrollContainer: this.#scrollContainer,
       scrolling: !!this.#scrollResolve,
@@ -994,11 +1044,15 @@ class MomentaMouse {
 
           const getCurrentTranslate = (currentTranslate, movement) =>
             currentTranslate +
-            movement *
-              (1 /
-                (bounciness *
-                  Math.abs(Math.pow(currentTranslate + movement, 2)) +
-                  1));
+            (Math.sign(currentTranslate) === Math.sign(movement) ||
+            currentTranslate === 0
+              ? movement /
+                Math.pow(
+                  Math.E,
+                  10 * bounciness * Math.abs(currentTranslate + movement)
+                )
+              : movement);
+
           const updateCurrentTranslateX = () =>
             (this.#bounceCurrentTranslateX = getCurrentTranslate(
               this.#bounceCurrentTranslateX,
@@ -1043,6 +1097,8 @@ class MomentaMouse {
   }
 
   #undoPointerDownChanges({ delayCursorChangeFor } = {}) {
+    if (!this.#isCurrentlyHandlingPointer) return;
+
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerPointerHandlingStop", {
         bubbles: true,
