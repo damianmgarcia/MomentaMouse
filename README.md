@@ -2,7 +2,9 @@
 
 ## **Description**
 
-MomentaMouse enables mouse-users to use touch-style scrolling and flicking gestures to navigate websites. Web developers interested in this functionality simply need to import the module to begin automatically or manually creating MomentaMouse scrollers.
+MomentaMouse enables mouse-users to use touch-style scrolling and flicking gestures to navigate websites.
+
+Web developers interested in this functionality simply need to import the module to begin automatically or manually creating MomentaMouse scrollers.
 
 If you would like to see it in action, check out [its demo page](https://damianmgarcia.com/momenta-mouse/index.html) as well as the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
