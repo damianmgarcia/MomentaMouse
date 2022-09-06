@@ -2,7 +2,9 @@
 
 ## **Description**
 
-MomentaMouse is a JavaScript module that enables mouse-users to use touch-style scrolling and flicking gestures to navigate websites. If you would like to see it in action, check out [its demo page](https://damianmgarcia.com/momenta-mouse/index.html) as well as the demos at [damianmgarcia.com](https://damianmgarcia.com).
+MomentaMouse enables mouse-users to use touch-style scrolling and flicking gestures to navigate websites. Web developers interested in this functionality simply need to import the module to begin automatically or manually creating MomentaMouse scrollers.
+
+If you would like to see it in action, check out [its demo page](https://damianmgarcia.com/momenta-mouse/index.html) as well as the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
 Also, check out [SmoothScroller](https://github.com/damianmgarcia/SmoothScroller). It is a JavaScript module that provides easy-to-use and customizable smooth scrolling functionality for your website and is designed to work well with MomentaMouse.
 
@@ -104,11 +106,11 @@ If a method has parameters, they are listed in order below the method descriptio
 
 ### **Instance** Methods:
 
-- **getScrollerData** — Gets and returns an [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#objects) containing the following instance properties: active, scrollContainer, scrollableAxes, scrolling.<br><br>
+- **getScrollerData** — Gets and returns an [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#objects) containing the following instance properties: active, isCurrentlyHandlingPointer, scrollContainer, scrollableAxes, scrolling.<br><br>
 - **setDecelerationLevel** — Sets the deceleration of momentum scrolls. It returns the MomentaMouse instance.
   - _decelerationLevel_ — _"medium"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the deceleration level, which may be any of the following values: "none", "minimum", "low", "medium", "high", or "maximum".<br><br>
 - **setBorderBouncinessLevel** — Sets the bounciness of borders impacted by momentum scrolls. It returns the MomentaMouse instance.
-  - _borderBouncinessLevel_ — _"medium"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the border bounciness level, which may be any of the following values: "none", "minimum", "low", "medium", "high", or "maximum".<br><br>
+  - _borderBouncinessLevel_ — _"medium"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the border bounciness level, which may be any of the following values: "none", "minimum", "low", "medium", "high", or "maximum". Bouncing and overscroll effects are accomplished with CSS transforms, and therefore any value other than "none" will add a CSS transform declaration to the _scrollContainer_. Keep in mind that an element with a transform declaration value other than "none" will become a [containing block](https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block) for descendant elements that have [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position) values of absolute or fixed. For fixed-position descendant elements, this means they will become fixed to the containing block rather than the viewport.<br><br>
 - **setGrabCursor** — Sets the [grab cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor). It returns the MomentaMouse instance.
   - _grabCursor_ — _"grab"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [grab cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor).<br><br>
 - **setGrabbingCursor** — Sets the [grabbing cursor](https://developer.mozilla.org/en-US/docs/Web/CSS/cursor). It returns the MomentaMouse instance.
