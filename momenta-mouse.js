@@ -34,7 +34,7 @@ class MomentaMouse {
         allowedTypes: ["boolean"],
       }
     );
-    this.#verifySelectors("selectorsToIgnore", selectorsToIgnore);
+    this._verifySelectors("selectorsToIgnore", selectorsToIgnore);
 
     document
       .querySelectorAll(`${rootSelector}, ${rootSelector} *`)
@@ -253,7 +253,7 @@ class MomentaMouse {
 
   static #selectorsOfOtherTouchScrollers = [];
 
-  static #verifySelectors(selectorsName, selectors) {
+  static _verifySelectors(selectorsName, selectors) {
     validateArgument(selectorsName, selectors, {
       allowedTypes: ["array"],
     });
@@ -273,7 +273,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.#verifySelectors("selectorsOfElementsScrollerShouldIgnore", selectors);
+    this._verifySelectors("selectorsOfElementsScrollerShouldIgnore", selectors);
 
     const currentSelector = this.#selectorsOfElementsScrollerShouldIgnore;
 
@@ -289,7 +289,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.#verifySelectors("selectorsOfClickableElements", selectors);
+    this._verifySelectors("selectorsOfClickableElements", selectors);
 
     const currentSelector = this.#selectorsOfClickableElements;
 
@@ -305,7 +305,7 @@ class MomentaMouse {
     selectors = [],
     { keepCurrentSelectors = true } = {}
   ) {
-    this.#verifySelectors("selectorsOfOtherTouchScrollers", selectors);
+    this._verifySelectors("selectorsOfOtherTouchScrollers", selectors);
 
     const currentSelector = this.#selectorsOfOtherTouchScrollers;
 
