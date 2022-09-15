@@ -4,7 +4,7 @@
 
 MomentaMouse enables mouse-users to use touch-style scrolling and flicking gestures to navigate websites.
 
-Web developers interested in this functionality simply need to import the module to begin automatically or manually creating MomentaMouse scrollers.
+Web developers can easily add MomentaMouse functionality to a website.
 
 If you would like to see it in action, check out [its demo page](https://damianmgarcia.com/momenta-mouse/index.html) as well as the demos at [damianmgarcia.com](https://damianmgarcia.com).
 
@@ -49,7 +49,7 @@ If a method has parameters, they are listed in order below the method descriptio
 
 ### **Static** Methods:
 
-- **autoCreateScrollers** — Searches for compatible elements to create MomentaMouse Scrollers. It returns the MomentaMouse class.
+- **autoCreateScrollers** — Searches for elements that are potentially scrollable to create MomentaMouse Scrollers. It returns the MomentaMouse class.
   - _Options Object:_
     - _rootSelector_ — _":root"_ — A [String](https://developer.mozilla.org/en-US/docs/Glossary/String) representing the [CSS selector](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors) that will be used as the starting point in the process of automatically creating MomentaMouse Scrollers. The _rootSelector_ itself is included in the process. Ancestors of the _rootSelector_ will not be included.
     - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of MomentaMouse instances after creation. If set to true, instances will be activated after they are created. If set to false, instances will not be activated after they are created.
