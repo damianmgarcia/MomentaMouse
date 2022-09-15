@@ -48,14 +48,14 @@ class MomentaMouse {
         if (scrollerAlreadyExists) return;
 
         const {
-          xAxisIsScrollable,
+          xAxisIsPotentiallyScrollable,
           xAxisOverflow,
-          yAxisIsScrollable,
+          yAxisIsPotentiallyScrollable,
           yAxisOverflow,
         } = ScrollContainerTools.getAxisOverflowProperties(element);
 
         const bothAxesAreNonScrollable =
-          !xAxisIsScrollable && !yAxisIsScrollable;
+          !xAxisIsPotentiallyScrollable && !yAxisIsPotentiallyScrollable;
         const bothAxesHaveHiddenOverflow =
           xAxisOverflow === "hidden" && yAxisOverflow === "hidden";
         if (
@@ -125,12 +125,16 @@ class MomentaMouse {
         }
 
         if (this.#scrollerHandlingPointer)
-          this.#scrollerHandlingPointer.#undoPointerDownChanges();
+          this.#scrollerHandlingPointer.#undoPointerDownChanges({
+            interruptedBy: "Blur",
+          });
       });
 
       document.addEventListener("contextmenu", () => {
         if (this.#scrollerHandlingPointer)
-          this.#scrollerHandlingPointer.#undoPointerDownChanges();
+          this.#scrollerHandlingPointer.#undoPointerDownChanges({
+            interruptedBy: "Context Menu",
+          });
       });
 
       document.addEventListener("momentaMouseScrollerActivate", (event) => {
@@ -448,12 +452,13 @@ class MomentaMouse {
           { signal: thresholdTestAbortController.signal }
         );
 
-        ["pointercancel", "pointerup", "wheel"].forEach((eventType) =>
-          document.addEventListener(
-            eventType,
-            () => abortAndResolve({ thresholdCrossed: null }),
-            { signal: thresholdTestAbortController.signal }
-          )
+        ["contextmenu", "pointercancel", "pointerup", "wheel"].forEach(
+          (eventType) =>
+            document.addEventListener(
+              eventType,
+              () => abortAndResolve({ thresholdCrossed: null }),
+              { signal: thresholdTestAbortController.signal }
+            )
         );
 
         addEventListener(
@@ -579,23 +584,24 @@ class MomentaMouse {
       const noThresholdsWereCrossed = !thresholdTestResults.thresholdCrossed;
       if (noThresholdsWereCrossed) return;
 
-      // Click preventDefault necessary for Gecko
+      // Click preventDefault/stopPropagation necessary for Gecko
       const abortController = new AbortController();
       ["pointercancel", "pointerup"].forEach((eventType) =>
         document.addEventListener(
           eventType,
           (event) => {
-            const cursorIsOverAnchorElement =
+            const cursorIsOverNonScrollerElement =
               document.elementFromPoint(event.clientX, event.clientY) ===
               topRelevantEventTargetProperties.eventTarget;
-            if (!cursorIsOverAnchorElement) return abortController.abort();
+            if (!cursorIsOverNonScrollerElement) return abortController.abort();
             document.addEventListener(
               "click",
               (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 abortController.abort();
               },
-              { signal: abortController.signal }
+              { signal: abortController.signal, capture: true }
             );
           },
           { signal: abortController.signal }
@@ -700,6 +706,7 @@ class MomentaMouse {
         if (routeFrom === this.#scrollContainer)
           return this.#undoPointerDownChanges({
             delayCursorChangeFor: routeTo,
+            interruptedBy: "Threshold test",
           });
 
         if (this.#scrollResolve)
@@ -709,20 +716,20 @@ class MomentaMouse {
       }
     );
 
-    const stopHandlingOrScrollingIfNeeded = () => {
+    const stopHandlingOrScrollingIfNeeded = ({ interruptedBy = null } = {}) => {
       if (this.#scrollResolve) {
         this.#stopScroll({
           interruptedBy: "Other scroll",
         });
       } else if (this.#isCurrentlyHandlingPointer) {
-        this.#undoPointerDownChanges();
+        this.#undoPointerDownChanges({ interruptedBy });
       }
     };
 
     this.#scrollContainer.addEventListener("wheel", () => {
       if (!this.#active) return;
 
-      stopHandlingOrScrollingIfNeeded();
+      stopHandlingOrScrollingIfNeeded({ interruptedBy: "Wheel" });
     });
 
     this.#scrollContainer.addEventListener("keydown", (event) => {
@@ -731,7 +738,7 @@ class MomentaMouse {
       const pressedScrollingKey = InputTools.isKeyThatScrolls(event.key);
       if (!pressedScrollingKey) return;
 
-      stopHandlingOrScrollingIfNeeded();
+      stopHandlingOrScrollingIfNeeded({ interruptedBy: "Keydown" });
     });
 
     this.#scrollContainer.addEventListener("mousedown", (event) => {
@@ -740,17 +747,22 @@ class MomentaMouse {
       const wheelButtonClicked = event.button === 1;
       if (!wheelButtonClicked) return;
 
-      stopHandlingOrScrollingIfNeeded();
+      stopHandlingOrScrollingIfNeeded({ interruptedBy: "Mouse middle button" });
     });
 
-    this.#scrollContainer.addEventListener("smoothScrollerScrollStart", () => {
-      if (!this.#active) return;
+    this.#scrollContainer.addEventListener(
+      "smoothScrollerScrollStart",
+      (event) => {
+        if (!this.#active) return;
 
-      if (this.#scrollResolve)
-        this.#stopScroll({
-          interruptedBy: "Other scroll",
-        });
-    });
+        if (event.target !== this.#scrollContainer) return;
+
+        if (this.#scrollResolve)
+          this.#stopScroll({
+            interruptedBy: "Other scroll",
+          });
+      }
+    );
 
     this.#scrollContainer.addEventListener("dragstart", (event) => {
       if (!this.#active) return;
@@ -904,7 +916,9 @@ class MomentaMouse {
         interruptedBy: "MomentaMouse scroller deactivation",
       });
 
-    this.#undoPointerDownChanges();
+    this.#undoPointerDownChanges({
+      interruptedBy: "MomentaMouse scroller deactivation",
+    });
     if (this.#allowReactiveCursor)
       this.#scrollContainer.style.removeProperty("cursor");
     this.#scrollContainer.style.removeProperty("-webkit-user-select");
@@ -1096,14 +1110,14 @@ class MomentaMouse {
     );
   }
 
-  #undoPointerDownChanges({ delayCursorChangeFor } = {}) {
+  #undoPointerDownChanges({ delayCursorChangeFor, interruptedBy = null } = {}) {
     if (!this.#isCurrentlyHandlingPointer) return;
 
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerPointerHandlingStop", {
         bubbles: true,
         cancelable: true,
-        detail: this.#getScrollEventData(),
+        detail: this.#getScrollEventData({ interruptedBy }),
       })
     );
 
