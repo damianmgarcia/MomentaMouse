@@ -1,17 +1,14 @@
 import {
-  getDeviceHeuristics,
+  Heuristics,
   InputTools,
   ScrollContainerTools,
   validateArgument,
 } from "https://damianmgarcia.com/scripts/modules/utilities.js";
 
-const deviceHeuristics = getDeviceHeuristics();
 const momentaMouseScrollerKey = Symbol("momentaMouseScrollerKey");
 
 class MomentaMouse {
   static #scrollerMap = new Map();
-  static #activeScrollers = new Set();
-  static #inactiveScrollers = new Set();
   static #scrollerHandlingPointer;
 
   static autoCreateScrollers({
@@ -72,11 +69,6 @@ class MomentaMouse {
   }
 
   static createScroller(scrollContainer, { activateImmediately = true } = {}) {
-    if (deviceHeuristics.isTouchScreen)
-      throw new Error(
-        "MomentaMouse instantiation blocked because this is a touch-screen device. MomentaMouse is intended to be used by mouse-users on non-touch-screen devices."
-      );
-
     validateArgument("scrollContainer", scrollContainer, {
       allowedPrototypes: [Element],
     });
@@ -95,6 +87,24 @@ class MomentaMouse {
     }
 
     if (!this.#initializationComplete) {
+      Heuristics.getDeviceHeuristics({ listenForAndDispatchChanges: true });
+
+      document.addEventListener("deviceHeuristicsChange", (event) => {
+        if (event.detail.property !== "hasMouseOrTouchpad") return;
+
+        const { newValue: hasMouseOrTouchpad } = event.detail;
+
+        if (hasMouseOrTouchpad) {
+          this.#scrollerMap.forEach((scroller) =>
+            scroller.activate({ activationReason: "Mouse available" })
+          );
+        } else if (!hasMouseOrTouchpad) {
+          this.#scrollerMap.forEach((scroller) =>
+            scroller.deactivate({ deactivationReason: "Mouse not available" })
+          );
+        }
+      });
+
       document.addEventListener("pointerdown", (event) =>
         this._pointerDownRouter(event)
       );
@@ -103,8 +113,8 @@ class MomentaMouse {
         if (!this.#allowQuickToggleKey) return;
 
         if (event.key === "Control")
-          this.#activeScrollers.forEach((scroller) =>
-            scroller.deactivate({ quickToggleDeactivation: true })
+          this.#scrollerMap.forEach((scroller) =>
+            scroller.deactivate({ deactivationReason: "Quick toggle key" })
           );
       });
 
@@ -112,15 +122,15 @@ class MomentaMouse {
         if (!this.#allowQuickToggleKey) return;
 
         if (event.key === "Control")
-          this.#inactiveScrollers.forEach((scroller) =>
-            scroller.activate({ quickToggleActivation: true })
+          this.#scrollerMap.forEach((scroller) =>
+            scroller.activate({ activationReason: "Quick toggle key" })
           );
       });
 
       addEventListener("blur", () => {
         if (this.#allowQuickToggleKey) {
-          this.#inactiveScrollers.forEach((scroller) =>
-            scroller.activate({ quickToggleActivation: true })
+          this.#scrollerMap.forEach((scroller) =>
+            scroller.activate({ activationReason: "Quick toggle key" })
           );
         }
 
@@ -135,18 +145,6 @@ class MomentaMouse {
           this.#scrollerHandlingPointer.#undoPointerDownChanges({
             interruptedBy: "Context Menu",
           });
-      });
-
-      document.addEventListener("momentaMouseScrollerActivate", (event) => {
-        const scroller = this.getScroller(event.detail.scrollContainer);
-        this.#activeScrollers.add(scroller);
-        this.#inactiveScrollers.delete(scroller);
-      });
-
-      document.addEventListener("momentaMouseScrollerDeactivate", (event) => {
-        const scroller = this.getScroller(event.detail.scrollContainer);
-        this.#activeScrollers.delete(scroller);
-        this.#inactiveScrollers.add(scroller);
       });
 
       document.addEventListener(
@@ -192,7 +190,10 @@ class MomentaMouse {
 
     this.#scrollerMap.set(scrollContainer, scroller);
 
-    if (activateImmediately) scroller.activate();
+    if (activateImmediately)
+      scroller.activate({
+        activationReason: "Scroller creation automatic activation",
+      });
 
     return scroller;
   }
@@ -318,6 +319,8 @@ class MomentaMouse {
   }
 
   static async _pointerDownRouter(event) {
+    if (event.pointerType !== "mouse") return;
+
     const inputButtonIsPrimary = InputTools.isPrimaryInput(event);
     if (!inputButtonIsPrimary) return;
 
@@ -399,7 +402,6 @@ class MomentaMouse {
       topEventTarget.dispatchEvent(
         new CustomEvent("momentaMouseScrollerPointerRoute", {
           bubbles: true,
-          cancelable: true,
           detail: Object.assign(detail, { key: momentaMouseScrollerKey }),
         })
       );
@@ -457,7 +459,7 @@ class MomentaMouse {
             document.addEventListener(
               eventType,
               () => abortAndResolve({ thresholdCrossed: null }),
-              { signal: thresholdTestAbortController.signal }
+              { passive: true, signal: thresholdTestAbortController.signal }
             )
         );
 
@@ -726,11 +728,15 @@ class MomentaMouse {
       }
     };
 
-    this.#scrollContainer.addEventListener("wheel", () => {
-      if (!this.#active) return;
+    this.#scrollContainer.addEventListener(
+      "wheel",
+      () => {
+        if (!this.#active) return;
 
-      stopHandlingOrScrollingIfNeeded({ interruptedBy: "Wheel" });
-    });
+        stopHandlingOrScrollingIfNeeded({ interruptedBy: "Wheel" });
+      },
+      { passive: true }
+    );
 
     this.#scrollContainer.addEventListener("keydown", (event) => {
       if (!this.#active) return;
@@ -880,10 +886,16 @@ class MomentaMouse {
 
   #active = false;
 
-  activate({ quickToggleActivation = false } = {}) {
+  activate({ activationReason } = {}) {
     if (this.#active) return;
 
-    if (quickToggleActivation && !this.#quickToggleDeactivation) return;
+    if (!Heuristics.getDeviceHeuristics().hasMouseOrTouchpad) return;
+
+    if (
+      activationReason === "Quick toggle key" &&
+      !this.#quickToggleDeactivation
+    )
+      return;
 
     this.#quickToggleDeactivation = false;
 
@@ -896,8 +908,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerActivate", {
         bubbles: true,
-        cancelable: true,
-        detail: this.#getScrollEventData({ quickToggleActivation }),
+        detail: { scrollContainer: this.#scrollContainer, activationReason },
       })
     );
 
@@ -906,10 +917,11 @@ class MomentaMouse {
 
   #quickToggleDeactivation = false;
 
-  deactivate({ quickToggleDeactivation = false } = {}) {
+  deactivate({ deactivationReason } = {}) {
     if (!this.#active) return;
 
-    if (quickToggleDeactivation) this.#quickToggleDeactivation = true;
+    if (deactivationReason === "Quick toggle key")
+      this.#quickToggleDeactivation = true;
 
     if (this.#scrollResolve)
       this.#stopScroll({
@@ -928,8 +940,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerDeactivate", {
         bubbles: true,
-        cancelable: true,
-        detail: this.#getScrollEventData({ quickToggleDeactivation }),
+        detail: { scrollContainer: this.#scrollContainer, deactivationReason },
       })
     );
 
@@ -938,9 +949,9 @@ class MomentaMouse {
 
   toggleActivation() {
     if (this.#active) {
-      return this.deactivate();
+      return this.deactivate({ deactivationReason: "toggleActivation Method" });
     } else if (!this.#active) {
-      return this.activate();
+      return this.activate({ activationReason: "toggleActivation Method" });
     }
   }
 
@@ -980,8 +991,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerPointerHandlingStart", {
         bubbles: true,
-        cancelable: true,
-        detail: this.#getScrollEventData(),
+        detail: { scrollContainer: this.#scrollContainer },
       })
     );
 
@@ -1116,8 +1126,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerPointerHandlingStop", {
         bubbles: true,
-        cancelable: true,
-        detail: this.#getScrollEventData({ interruptedBy }),
+        detail: { scrollContainer: this.#scrollContainer },
       })
     );
 
@@ -1397,7 +1406,6 @@ class MomentaMouse {
       this.#scrollContainer.dispatchEvent(
         new CustomEvent("momentaMouseScrollerScrollStart", {
           bubbles: true,
-          cancelable: true,
           detail: this.#getScrollEventData(),
         })
       );
@@ -1450,7 +1458,6 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerScroll", {
         bubbles: true,
-        cancelable: true,
         detail: this.#getScrollEventData(),
       })
     );
@@ -1537,7 +1544,6 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerScrollStop", {
         bubbles: true,
-        cancelable: true,
         detail: eventData,
       })
     );
@@ -1711,7 +1717,6 @@ class MomentaMouse {
       this.#scrollContainer.dispatchEvent(
         new CustomEvent("momentaMouseScrollerBounceStart", {
           bubbles: true,
-          cancelable: true,
           detail: this.#getBounceEventData(),
         })
       );
@@ -1789,7 +1794,6 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerBounceStop", {
         bubbles: true,
-        cancelable: true,
         detail: eventData,
       })
     );
