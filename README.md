@@ -55,7 +55,7 @@ If a method has parameters, they are listed in order below the method descriptio
     - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of MomentaMouse instances after creation. If set to true, instances will be activated after they are created. If set to false, instances will not be activated after they are created.
     - _considerOverflowHiddenAxesNonScrollable_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines how _autoCreateScrollers_ handles elements with hidden [overflows](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow). If set to true, the horizontal axis of an element will be considered non-scrollable by the MomentaMouse instance if [overflow-x](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x) is set to hidden, and the vertical axis of an element will be considered non-scrollable by the MomentaMouse instance if [overflow-y](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y) is set to hidden. If set to false, the horizontal axis of an element will be considered scrollable by the MomentaMouse instance as long as there is scrollable overflow, and the vertical axis of an element will be considered scrollable by the MomentaMouse instance as long as there is scrollable overflow.
     - _selectorsToIgnore_ — _[ ]_ — An [Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) of selectors that the _autoCreateScrollers_ method will refer to when deciding whether to create scrollers. If an element matches one of the selectors in this list, it will not be used to create a MomentaMouse instance.<br><br>
-- **createScroller** — Creates a MomentaMouse. It returns a MomentaMouse instance.
+- **createScroller** — Creates a MomentaMouse scroller. It returns a MomentaMouse instance.
   - _scrollContainer_ — The [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) that should gain MomentaMouse functionality.
   - _Options Object:_
     - _activateImmediately_ — _true_ — A [Boolean](https://developer.mozilla.org/en-US/docs/Glossary/Boolean) that determines the activation state of a MomentaMouse instance after creation. If set to true, an instance will be activated after it is created. If set to false, an instance will not be activated after it is created.<br><br>
@@ -146,6 +146,15 @@ If an event includes custom properties in the [CustomEvent details object](https
 
 - **momentaMouseScrollerActivate** — Dispatches when a MomentaMouse instance is activated
   - _scrollContainer_ — The MomentaMouse instance's scroll container
+  - _reason_ — The reason for the change in activation<br><br>
+- **momentaMouseScrollerDeactivate** — Dispatches when a MomentaMouse instance is deactivated
+  - Same as momentaMouseScrollerActivate<br><br>
+- **momentaMouseScrollerPointerHandlingStart** — Dispatches when a MomentaMouse instance gets control of the pointer
+  - _scrollContainer_ — The MomentaMouse instance's scroll container<br><br>
+- **momentaMouseScrollerPointerHandlingStop** — Dispatches when a MomentaMouse instance loses control of the pointer
+  - Same as momentaMouseScrollerPointerHandlingStart<br><br>
+- **momentaMouseScrollerScrollStart** — Dispatches at the beginning of a momentum scroll
+  - _scrollContainer_ — The MomentaMouse instance's scroll container
   - _initialVelocityX_ — The initial pointer velocity on the x axis
   - _initialVelocityY_ — The initial pointer velocity on the y axis
   - _initialVelocity_ — The hypotenuse of the initial pointer velocities
@@ -154,18 +163,10 @@ If an event includes custom properties in the [CustomEvent details object](https
   - _distance_ — The distance scrolled after the pointerup event
   - _elapsedTime_ — The elapsed time of the scroll
   - _interruptedBy_ — The cause of a scroll's interruption if it was interrupted; Otherwise, null<br><br>
-- **momentaMouseScrollerDeactivate** — Dispatches when a MomentaMouse instance is deactivated
-  - Same as momentaMouseScrollerActivate<br><br>
-- **momentaMouseScrollerPointerHandlingStart** — Dispatches when a MomentaMouse instance gets control of the pointer
-  - Same as momentaMouseScrollerActivate<br><br>
-- **momentaMouseScrollerPointerHandlingStop** — Dispatches when a MomentaMouse instance loses control of the pointer
-  - Same as momentaMouseScrollerActivate<br><br>
-- **momentaMouseScrollerScrollStart** — Dispatches at the beginning of a momentum scroll
-  - Same as momentaMouseScrollerActivate<br><br>
 - **momentaMouseScrollerScroll** — Dispatches continuously while momentum scrolling
-  - Same as momentaMouseScrollerActivate<br><br>
+  - Same as momentaMouseScrollerScrollStart<br><br>
 - **momentaMouseScrollerScrollStop** — Dispatches at the end of a momentum scroll
-  - Same as momentaMouseScrollerActivate<br><br>
+  - Same as momentaMouseScrollerScrollStart<br><br>
 - **momentaMouseScrollerBounceStart** — Dispatches at the beginning of a bounce
   - _scrollContainer_ — The MomentaMouse instance's scroll container
   - _startTimeX_ — The timestamp at the moment the momentum scroll impacted a border on the x axis
