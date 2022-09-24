@@ -96,11 +96,11 @@ class MomentaMouse {
 
         if (hasMouseOrTouchpad) {
           this.#scrollerMap.forEach((scroller) =>
-            scroller.activate({ activationReason: "Mouse available" })
+            scroller.activate({ reason: "Mouse available" })
           );
         } else if (!hasMouseOrTouchpad) {
           this.#scrollerMap.forEach((scroller) =>
-            scroller.deactivate({ deactivationReason: "Mouse not available" })
+            scroller.deactivate({ reason: "Mouse not available" })
           );
         }
       });
@@ -114,7 +114,7 @@ class MomentaMouse {
 
         if (event.key === "Control")
           this.#scrollerMap.forEach((scroller) =>
-            scroller.deactivate({ deactivationReason: "Quick toggle key" })
+            scroller.deactivate({ reason: "Quick toggle key" })
           );
       });
 
@@ -123,14 +123,14 @@ class MomentaMouse {
 
         if (event.key === "Control")
           this.#scrollerMap.forEach((scroller) =>
-            scroller.activate({ activationReason: "Quick toggle key" })
+            scroller.activate({ reason: "Quick toggle key" })
           );
       });
 
       addEventListener("blur", () => {
         if (this.#allowQuickToggleKey) {
           this.#scrollerMap.forEach((scroller) =>
-            scroller.activate({ activationReason: "Quick toggle key" })
+            scroller.activate({ reason: "Quick toggle key" })
           );
         }
 
@@ -192,7 +192,7 @@ class MomentaMouse {
 
     if (activateImmediately)
       scroller.activate({
-        activationReason: "Scroller creation automatic activation",
+        reason: "Scroller creation automatic activation",
       });
 
     return scroller;
@@ -886,16 +886,12 @@ class MomentaMouse {
 
   #active = false;
 
-  activate({ activationReason } = {}) {
+  activate({ reason } = {}) {
     if (this.#active) return;
 
     if (!Heuristics.getDeviceHeuristics().hasMouseOrTouchpad) return;
 
-    if (
-      activationReason === "Quick toggle key" &&
-      !this.#quickToggleDeactivation
-    )
-      return;
+    if (reason === "Quick toggle key" && !this.#quickToggleDeactivation) return;
 
     this.#quickToggleDeactivation = false;
 
@@ -908,7 +904,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerActivate", {
         bubbles: true,
-        detail: { scrollContainer: this.#scrollContainer, activationReason },
+        detail: { scrollContainer: this.#scrollContainer, reason },
       })
     );
 
@@ -917,11 +913,10 @@ class MomentaMouse {
 
   #quickToggleDeactivation = false;
 
-  deactivate({ deactivationReason } = {}) {
+  deactivate({ reason } = {}) {
     if (!this.#active) return;
 
-    if (deactivationReason === "Quick toggle key")
-      this.#quickToggleDeactivation = true;
+    if (reason === "Quick toggle key") this.#quickToggleDeactivation = true;
 
     if (this.#scrollResolve)
       this.#stopScroll({
@@ -940,7 +935,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerDeactivate", {
         bubbles: true,
-        detail: { scrollContainer: this.#scrollContainer, deactivationReason },
+        detail: { scrollContainer: this.#scrollContainer, reason },
       })
     );
 
@@ -949,9 +944,9 @@ class MomentaMouse {
 
   toggleActivation() {
     if (this.#active) {
-      return this.deactivate({ deactivationReason: "toggleActivation Method" });
+      return this.deactivate({ reason: "toggleActivation Method" });
     } else if (!this.#active) {
-      return this.activate({ activationReason: "toggleActivation Method" });
+      return this.activate({ reason: "toggleActivation Method" });
     }
   }
 
