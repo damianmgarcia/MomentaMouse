@@ -152,7 +152,8 @@ If an event includes custom properties in the [CustomEvent details object](https
 - **momentaMouseScrollerPointerHandlingStart** — Dispatches when a MomentaMouse instance gets control of the pointer
   - _scrollContainer_ — The MomentaMouse instance's scroll container<br><br>
 - **momentaMouseScrollerPointerHandlingStop** — Dispatches when a MomentaMouse instance loses control of the pointer
-  - Same as momentaMouseScrollerPointerHandlingStart<br><br>
+  - _scrollContainer_ — The MomentaMouse instance's scroll container
+  - _interruptedBy_ — The cause of a pointer handling's interruption if it was interrupted; Otherwise, null<br><br>
 - **momentaMouseScrollerScrollStart** — Dispatches at the beginning of a momentum scroll
   - _scrollContainer_ — The MomentaMouse instance's scroll container
   - _initialVelocityX_ — The initial pointer velocity on the x axis
