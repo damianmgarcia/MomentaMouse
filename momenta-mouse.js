@@ -1121,7 +1121,7 @@ class MomentaMouse {
     this.#scrollContainer.dispatchEvent(
       new CustomEvent("momentaMouseScrollerPointerHandlingStop", {
         bubbles: true,
-        detail: { scrollContainer: this.#scrollContainer },
+        detail: { scrollContainer: this.#scrollContainer, interruptedBy },
       })
     );
 
