@@ -10,6 +10,7 @@ const momentaMouseScrollerKey = Symbol("momentaMouseScrollerKey");
 class MomentaMouse {
   static #scrollerMap = new Map();
   static #scrollerHandlingPointer;
+  static #supportsGetCoalescedEvents = InputTools.supportsGetCoalescedEvents();
 
   static autoCreateScrollers({
     rootSelector = ":root",
@@ -186,7 +187,11 @@ class MomentaMouse {
     if (scrollContainer === document.documentElement)
       createCounterBounceMechanismForRoot();
 
-    const scroller = new this(scrollContainer, momentaMouseScrollerKey);
+    const scroller = new this(
+      scrollContainer,
+      momentaMouseScrollerKey,
+      this.#supportsGetCoalescedEvents
+    );
 
     this.#scrollerMap.set(scrollContainer, scroller);
 
@@ -418,39 +423,48 @@ class MomentaMouse {
         const pointerStartingPointX = event.screenX;
         const pointerStartingPointY = event.screenY;
         const thresholdTestAbortController = new AbortController();
+
         const abortAndResolve = (resolveData) => {
           thresholdTestAbortController.abort();
           resolve(resolveData);
         };
+
+        const processPointerMove = (event) => {
+          const getPointerDistanceFromOrigin = (
+            originalPosition,
+            newPosition
+          ) => Math.abs(originalPosition - newPosition);
+
+          const pointerDistanceFromOriginX = getPointerDistanceFromOrigin(
+            pointerStartingPointX,
+            event.screenX
+          );
+          const pointerDistanceFromOriginY = getPointerDistanceFromOrigin(
+            pointerStartingPointY,
+            event.screenY
+          );
+
+          if (
+            pointerDistanceFromOriginX > threshold &&
+            pointerDistanceFromOriginX > pointerDistanceFromOriginY
+          ) {
+            return abortAndResolve({ event, thresholdCrossed: "horizontal" });
+          } else if (
+            pointerDistanceFromOriginY > threshold &&
+            pointerDistanceFromOriginY > pointerDistanceFromOriginX
+          ) {
+            return abortAndResolve({ event, thresholdCrossed: "vertical" });
+          }
+        };
+
         document.addEventListener(
           "pointermove",
-          (event) => {
-            const getPointerDistanceFromOrigin = (
-              originalPosition,
-              newPosition
-            ) => Math.abs(originalPosition - newPosition);
-
-            const pointerDistanceFromOriginX = getPointerDistanceFromOrigin(
-              pointerStartingPointX,
-              event.screenX
-            );
-            const pointerDistanceFromOriginY = getPointerDistanceFromOrigin(
-              pointerStartingPointY,
-              event.screenY
-            );
-
-            if (
-              pointerDistanceFromOriginX > threshold &&
-              pointerDistanceFromOriginX > pointerDistanceFromOriginY
-            ) {
-              return abortAndResolve({ event, thresholdCrossed: "horizontal" });
-            } else if (
-              pointerDistanceFromOriginY > threshold &&
-              pointerDistanceFromOriginY > pointerDistanceFromOriginX
-            ) {
-              return abortAndResolve({ event, thresholdCrossed: "vertical" });
-            }
-          },
+          (event) =>
+            this.#supportsGetCoalescedEvents
+              ? event
+                  .getCoalescedEvents()
+                  .forEach((event) => processPointerMove(event))
+              : processPointerMove(event),
           { signal: thresholdTestAbortController.signal }
         );
 
@@ -652,6 +666,7 @@ class MomentaMouse {
   }
 
   #scrollContainer;
+  #useCoalescedEvents;
   #pageProgression;
   #decelerationLevel = "medium";
   #borderBouncinessLevel = "medium";
@@ -677,7 +692,7 @@ class MomentaMouse {
     ["maximum", 0.01 / 1.2 ** 4],
   ]);
 
-  constructor(scrollContainer, key) {
+  constructor(scrollContainer, key, supportsGetCoalescedEvents) {
     validateArgument("key", key, {
       allowedValues: [momentaMouseScrollerKey],
       customErrorMessage:
@@ -685,6 +700,7 @@ class MomentaMouse {
     });
 
     this.#scrollContainer = scrollContainer;
+    this.#useCoalescedEvents = supportsGetCoalescedEvents;
 
     this.#scrollContainer.classList.add("momenta-mouse-scroller");
     this.#scrollContainer.setAttribute("tabindex", "0");
@@ -1028,89 +1044,96 @@ class MomentaMouse {
       )
     );
 
-    this.#scrollContainer.addEventListener(
-      "pointermove",
-      (event) => {
-        if (this.#xAxisIsScrollable) {
-          movementX = event.screenX - previousScreenX;
-          previousScreenX = event.screenX;
-        }
+    const processPointerMove = (event) => {
+      if (this.#xAxisIsScrollable) {
+        movementX = event.screenX - previousScreenX;
+        previousScreenX = event.screenX;
+      }
 
-        if (this.#yAxisIsScrollable) {
-          movementY = event.screenY - previousScreenY;
-          previousScreenY = event.screenY;
-        }
+      if (this.#yAxisIsScrollable) {
+        movementY = event.screenY - previousScreenY;
+        previousScreenY = event.screenY;
+      }
 
-        const updateScrollLeft = () =>
-          (this.#scrollContainer.scrollLeft -= movementX);
-        const updateScrollTop = () =>
-          (this.#scrollContainer.scrollTop -= movementY);
-        const resetTranslateX = () => (this.#bounceCurrentTranslateX = 0);
-        const resetTranslateY = () => (this.#bounceCurrentTranslateY = 0);
+      const updateScrollLeft = () =>
+        (this.#scrollContainer.scrollLeft -= movementX);
+      const updateScrollTop = () =>
+        (this.#scrollContainer.scrollTop -= movementY);
+      const resetTranslateX = () => (this.#bounceCurrentTranslateX = 0);
+      const resetTranslateY = () => (this.#bounceCurrentTranslateY = 0);
 
-        if (this.#borderBouncinessLevel !== "none") {
-          const { atLeftEdge, atRightEdge, atTopEdge, atBottomEdge } =
-            ScrollContainerTools.getEdgeStatus(this.#scrollContainer, {
-              cachedPageProgression: this.#pageProgression,
-            });
+      if (this.#borderBouncinessLevel !== "none") {
+        const { atLeftEdge, atRightEdge, atTopEdge, atBottomEdge } =
+          ScrollContainerTools.getEdgeStatus(this.#scrollContainer, {
+            cachedPageProgression: this.#pageProgression,
+          });
 
-          const tryingToScrollBeyondHorizontalEdge =
-            (atLeftEdge && this.#bounceCurrentTranslateX + movementX > 0) ||
-            (atRightEdge && this.#bounceCurrentTranslateX + movementX < 0);
-          const tryingToScrollBeyondVerticalEdge =
-            (atBottomEdge && this.#bounceCurrentTranslateY + movementY < 0) ||
-            (atTopEdge && this.#bounceCurrentTranslateY + movementY > 0);
+        const tryingToScrollBeyondHorizontalEdge =
+          (atLeftEdge && this.#bounceCurrentTranslateX + movementX > 0) ||
+          (atRightEdge && this.#bounceCurrentTranslateX + movementX < 0);
+        const tryingToScrollBeyondVerticalEdge =
+          (atBottomEdge && this.#bounceCurrentTranslateY + movementY < 0) ||
+          (atTopEdge && this.#bounceCurrentTranslateY + movementY > 0);
 
-          const getCurrentTranslate = (currentTranslate, movement) =>
-            currentTranslate +
-            (Math.sign(currentTranslate) === Math.sign(movement) ||
-            currentTranslate === 0
-              ? movement /
-                Math.pow(
-                  Math.E,
-                  10 * bounciness * Math.abs(currentTranslate + movement)
-                )
-              : movement);
+        const getCurrentTranslate = (currentTranslate, movement) =>
+          currentTranslate +
+          (Math.sign(currentTranslate) === Math.sign(movement) ||
+          currentTranslate === 0
+            ? movement /
+              Math.pow(
+                Math.E,
+                10 * bounciness * Math.abs(currentTranslate + movement)
+              )
+            : movement);
 
-          const updateCurrentTranslateX = () =>
-            (this.#bounceCurrentTranslateX = getCurrentTranslate(
-              this.#bounceCurrentTranslateX,
-              movementX
-            ));
-          const updateCurrentTranslateY = () =>
-            (this.#bounceCurrentTranslateY = getCurrentTranslate(
-              this.#bounceCurrentTranslateY,
-              movementY
-            ));
+        const updateCurrentTranslateX = () =>
+          (this.#bounceCurrentTranslateX = getCurrentTranslate(
+            this.#bounceCurrentTranslateX,
+            movementX
+          ));
+        const updateCurrentTranslateY = () =>
+          (this.#bounceCurrentTranslateY = getCurrentTranslate(
+            this.#bounceCurrentTranslateY,
+            movementY
+          ));
 
-          if (tryingToScrollBeyondHorizontalEdge) {
-            updateCurrentTranslateX();
-          } else if (!tryingToScrollBeyondHorizontalEdge) {
-            resetTranslateX();
-            updateScrollLeft();
-          }
-
-          if (tryingToScrollBeyondVerticalEdge) {
-            updateCurrentTranslateY();
-          } else if (!tryingToScrollBeyondVerticalEdge) {
-            resetTranslateY();
-            updateScrollTop();
-          }
-
-          this.#updateBouncePosition();
-        } else if (this.#borderBouncinessLevel === "none") {
+        if (tryingToScrollBeyondHorizontalEdge) {
+          updateCurrentTranslateX();
+        } else if (!tryingToScrollBeyondHorizontalEdge) {
           resetTranslateX();
-          resetTranslateY();
           updateScrollLeft();
+        }
+
+        if (tryingToScrollBeyondVerticalEdge) {
+          updateCurrentTranslateY();
+        } else if (!tryingToScrollBeyondVerticalEdge) {
+          resetTranslateY();
           updateScrollTop();
         }
 
-        this.#pointerMoveLog.push([
-          event.screenX,
-          event.screenY,
-          event.timeStamp,
-        ]);
-      },
+        this.#updateBouncePosition();
+      } else if (this.#borderBouncinessLevel === "none") {
+        resetTranslateX();
+        resetTranslateY();
+        updateScrollLeft();
+        updateScrollTop();
+      }
+
+      this.#pointerMoveLog.push([
+        event.screenX,
+        event.screenY,
+        event.timeStamp,
+      ]);
+    };
+
+    this.#scrollContainer.addEventListener(
+      "pointermove",
+      (event) =>
+        this.#useCoalescedEvents
+          ? event
+              .getCoalescedEvents()
+              .forEach((event) => processPointerMove(event))
+          : processPointerMove(event),
       { signal: this.#pointerMoveUpCancelAbortController.signal }
     );
   }
